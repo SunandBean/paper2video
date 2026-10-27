@@ -33,10 +33,63 @@ def nums(s):
     s = unicodedata.normalize('NFKC', s).replace('\u2212', '-')
     out = []
     for m in NUM.finditer(s):
+        if re.match(r'-?D(?![A-Za-z])', s[m.end():]) and not m.group(3): continue   # "3D", "4D", "1-D": names, not data
         sign, v, ex = m.group(1), m.group(2), m.group(3) or ''
         v = v.replace(',', '') if re.fullmatch(r'\d{1,3}(,\d{3})+', v) else v
         ex = ex.replace('{', '').replace('}', '').replace('E', 'e')
-        out.append(('-' if sign == '-' else '') + v.rstrip('.') + ex)
+        v = v.rstrip('.')
+        # 67.0 and 67 are the same value; "1.000" may be a European thousand, so it is left as written
+        if '.' in v and ',' not in v and not re.fullmatch(r'\d{1,3}\.\d{3}', v): v = v.rstrip('0').rstrip('.')
+        out.append(('-' if sign == '-' else '') + v + ex)
+    return out
+
+# Numbers spoken as English words in TTS text ("sixty point nine", "forty-seven", "two hundred and twelve").
+# A lone "one" or "zero" is skipped ("one model", "measure-zero"); punctuation ends a number ("three, one hundred").
+_UNITS = {w: i for i, w in enumerate('zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen '
+                                      'fifteen sixteen seventeen eighteen nineteen'.split())}
+_TENS = {w: 10 * i for i, w in enumerate('_ _ twenty thirty forty fifty sixty seventy eighty ninety'.split()) if i >= 2}
+_SCALE = {'hundred': 100, 'thousand': 1000, 'million': 10 ** 6, 'billion': 10 ** 9}
+def spoken_numbers(s):
+    toks = re.findall(r"[a-z]+|[,.;:!?]", s.lower().replace('-', ' '))
+    out, i = [], 0
+    while i < len(toks):
+        if toks[i] == 'point' and i + 1 < len(toks) and toks[i + 1] in _UNITS and _UNITS[toks[i + 1]] < 10 \
+                and not (i and (toks[i - 1] in _UNITS or toks[i - 1] in _TENS)):        # "point five" = 0.5
+            j, d = i + 1, ''
+            while j < len(toks) and toks[j] in _UNITS and _UNITS[toks[j]] < 10: d += str(_UNITS[toks[j]]); j += 1
+            out.append(('0.' + d).rstrip('0').rstrip('.') or '0'); i = j; continue
+        if toks[i] not in _UNITS and toks[i] not in _TENS and not (toks[i] == 'a' and i + 1 < len(toks) and toks[i + 1] in _SCALE):
+            i += 1; continue
+        j, total, cur, words = i, 0, 0, 0
+        while j < len(toks):
+            t = toks[j]
+            two_digit_next = (t in _TENS) or (t in _UNITS and _UNITS[t] >= 10)
+            if 10 <= cur <= 99 and not total and two_digit_next and words in (1, 2):
+                # year reading: "nineteen ninety" = 1990, "twenty twenty six" = 2026
+                nxt = _TENS.get(t, _UNITS.get(t, 0)); j += 1; words += 1
+                if t in _TENS and j < len(toks) and toks[j] in _UNITS and 0 < _UNITS[toks[j]] < 10: nxt += _UNITS[toks[j]]; j += 1; words += 1
+                cur = cur * 100 + nxt; break
+            if t in _UNITS:
+                if cur % 10 or 10 <= cur % 100 < 20: break          # "three one" / "twelve three" are two numbers
+                cur += _UNITS[t]
+            elif t in _TENS:
+                if cur % 100: break
+                cur += _TENS[t]
+            elif t == 'a' and j + 1 < len(toks) and toks[j + 1] in _SCALE: cur += 1
+            elif t in _SCALE and (cur or total):
+                if _SCALE[t] == 100: cur *= 100
+                else: total += cur * _SCALE[t]; cur = 0
+            elif t == 'and' and words and j + 1 < len(toks) and (toks[j + 1] in _UNITS or toks[j + 1] in _TENS): pass
+            else: break
+            words += 1; j += 1
+        val = str(total + cur)
+        if j < len(toks) and toks[j] == 'point' and j + 1 < len(toks) and toks[j + 1] in _UNITS:
+            d = ''; j += 1
+            while j < len(toks) and toks[j] in _UNITS and _UNITS[toks[j]] < 10: d += str(_UNITS[toks[j]]); j += 1
+            val = (val + '.' + d).rstrip('0').rstrip('.'); words += 2
+        if not (words == 1 and toks[i] in ('one', 'zero')):
+            out.append(val)
+        i = max(j, i + 1)
     return out
 
 def string_literals(js):
@@ -83,8 +136,20 @@ def main():
             row, vals = norm(c.get('row', '')), [norm(str(v)) for v in c.get('values', [])]
             if not row or not vals or not cap:
                 rows.append(('FAIL', cid, 'table claim needs table, row and values')); continue
+            # search only the cited table: between the previous and the next table caption around it
+            # (captions sit above or below their table depending on the template)
+            # every caption line (Arabic or Roman numbering, any repeat such as a list of tables) is a boundary;
+            # each occurrence of the cited caption gets its own scope and any of them may hold the row
+            bounds = [i for i, l in enumerate(lines) if re.match(r'table [0-9ivxlc]+\s*[:.]', l)]
+            capl = [i for i, l in enumerate(lines) if l.startswith(cap + ':') or l.startswith(cap + '.')]
+            scopes = []
+            for c0 in capl:
+                lo = max([i for i in bounds if i < c0], default=-1) + 1
+                hi = min([i for i in bounds if i > c0], default=len(lines))
+                scopes.append(lines[lo:hi])
+            scope = [l for sc in scopes for l in sc] if scopes else lines
             # a value must stand alone: "60" must not match inside "60.9" or "160"
-            hit = [l for l in lines if row in l and all(re.search(r'(?<![\d.])' + re.escape(v) + r'(?![\d]|\.\d)', l) for v in vals)]
+            hit = [l for l in scope if row in l and all(re.search(r'(?<![\d.])' + re.escape(v) + r'(?![\d]|\.\d)', l) for v in vals)]
             rows.append(('PASS' if hit else 'FAIL', cid, f'{c.get("table")} row "{c.get("row")}" = {c.get("values")}' + ('' if hit else '  NOT matched on one line')))
         elif k == 'derived':
             miss = [f for f in ('from', 'derivation', 'on_screen_label') if not c.get(f)]
@@ -96,17 +161,35 @@ def main():
         else:
             rows.append(('FAIL', cid, f'unknown kind {k}'))
     # coverage
-    covered = set(C.get('allow_numbers', {}).keys())
+    allowed = set()
+    for k in C.get('allow_numbers', {}):
+        allowed.update(nums(k) or [k])
+    covered = set(allowed)
     failed = {r[1] for r in rows if r[0] == 'FAIL'}   # a failed claim cannot vouch for a number
     for c in claims:
         if c['id'] in failed: continue
         for v in c.get('values', []): covered.update(nums(str(v)))
         for f in ('quote', 'text', 'row', 'derivation', 'table'): covered.update(nums(c.get(f, '')))
+    # numbers each sentence's own claims vouch for (claims list the sentences they back in `used_in`)
+    by_sent = {}
+    for c in claims:
+        if c['id'] in failed: continue
+        ns = set()
+        for v in c.get('values', []): ns.update(nums(str(v)))
+        for f in ('quote', 'text', 'row', 'derivation', 'table'): ns.update(nums(c.get(f, '')))
+        for u in c.get('used_in', []): by_sent.setdefault(u, set()).update(ns)
     shown = []
     for s in script['scenes']:
         for kk, (sub, tts) in enumerate(s['s']):
-            shown += [(n, f'{s["id"]}.{kk} subtitle') for n in nums(sub)]
-            shown += [(n, f'{s["id"]}.{kk} narration') for n in nums(tts)]
+            key = f'{s["id"]}.{kk}'
+            shown += [(n, f'{key} subtitle') for n in nums(sub)]
+            spoken = nums(tts) + spoken_numbers(tts)
+            shown += [(n, f'{key} narration') for n in spoken]
+            for n in sorted(set(nums(sub)) | set(spoken)):
+                small = re.fullmatch(r'\d', n) or n == '10'   # small counts ("four views", "two stages") need no used_in link
+                if n in covered and n not in allowed and not small and n not in by_sent.get(key, set()):
+                    rows.append(('WARN', key, f'{n} is covered by a claim, but not by one whose used_in lists {key} (is it the same quantity?)'))
+
     onscreen = os.path.join(J, 'build', 'onscreen.json')
     if os.path.exists(onscreen):
         newest = max(os.path.getmtime(os.path.join(J, f)) for f in os.listdir(J) if f.endswith('.js') or f == 'script.json')

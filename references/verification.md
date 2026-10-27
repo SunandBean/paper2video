@@ -10,8 +10,11 @@ Required: **FAIL 0, WARN 0**.
 Numbers it looks at: subtitles, narration text, string literals in the job's `.js` files, and `build/onscreen.json`,
 the list of every string the player actually drew (written by `p2v preview` and `p2v render`). The last source is
 what catches numbers that templates draw from JS values (bar values, axis ticks, `${v.toFixed(1)}s`).
+Narration numbers are read both as digits and as English number words ("sixty point nine" = 60.9).
 A number counts as covered only through a claim that itself passed, or through `allow_numbers` with a reason
-(axis gridlines, animated parameter values, ids). Illustrative numbers that are not from the paper must not
+(axis gridlines, animated parameter values, ids, product names like H100 read aloud). A subtitle or narration
+number above 10 must also come from a claim whose `used_in` lists that sentence, so a count of 42 objects cannot
+vouch for "42% higher". `table` claims are searched only inside the cited table (between the neighbouring captions). Illustrative numbers that are not from the paper must not
 appear on screen unless they are labeled as illustrative there.
 
 claims.json kinds:

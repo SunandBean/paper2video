@@ -20,7 +20,7 @@ export const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
 export const lerp = (a, b, t) => a + (b - a) * t;
 export const ease = t => (t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 export const eo = t => 1 - Math.pow(1 - t, 3);
-export const seg = (t, a, b) => clamp((t - a) / (b - a));
+export const seg = (t, a, b) => (b > a ? clamp((t - a) / (b - a)) : t >= b ? 1 : 0);   // zero-length window: a step, not NaN
 export function rng(seed) { let s = seed >>> 0; return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
 
 // ---------- renderer ----------

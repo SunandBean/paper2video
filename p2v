@@ -10,6 +10,7 @@
 #   p2v render <job> [--manual|--allow-stale]
 #   p2v collect               re-link every finished video into the videos folder
 #   p2v smoke [--ko]          end-to-end toolchain test
+#   p2v test                  fast regression tests (no tools or network needed)
 #   p2v run <link> [overrides]  unattended run through `claude -p` (log in <work>/logs/)
 #   p2v paths                 print the resolved folders as export lines
 #
@@ -154,7 +155,8 @@ case "$CMD" in
   render)  need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$@" ;;
   collect) exec node "$ROOT/scripts/collect.mjs" ;;
   smoke)   smoke "${1:-}" ;;
+  test)    "$SYSPY" "$ROOT/tests/test_python.py" && node "$ROOT/tests/test_server.mjs" ;;
   run)     run_unattended "$@" ;;
-  help|-h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//' ;;
+  help|-h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "p2v: unknown command '$CMD' (try: p2v help)"; exit 2 ;;
 esac

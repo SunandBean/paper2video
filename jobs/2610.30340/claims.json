@@ -810,6 +810,7 @@
   "2610.30340": "arXiv id",
   "2026.10": "arXiv submission month (Oct 2026)",
   "35": "y-axis gridline label of the mAP vs context chart (detect scene)",
-  "45": "y-axis gridline label of the mAP vs context chart (detect scene)"
+  "45": "y-axis gridline label of the mAP vs context chart (detect scene)",
+  "100": "GPU name H100 (narration reads it as \"H one hundred\")"
  }
 }

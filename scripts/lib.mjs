@@ -42,6 +42,18 @@ export function run(bin, args) {
 }
 
 
+// Duration of a PCM WAV from its header (fmt byte rate, data chunk size).
+export function wavSeconds(file) {
+  const b = fs.readFileSync(file); let i = 12, rate = 0;
+  while (i + 8 <= b.length) {
+    const id = b.toString('ascii', i, i + 4), size = b.readUInt32LE(i + 4);
+    if (id === 'fmt ') rate = b.readUInt32LE(i + 16);
+    if (id === 'data') return rate ? size / rate : 0;
+    i += 8 + size + (size & 1);
+  }
+  return 0;
+}
+
 export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const b = path.join(jobsDir(root), job, 'build');
   // ffmpeg's image sequence stops silently at the first gap, so check that every frame arrived.
@@ -52,6 +64,11 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const frames = path.join(b, 'frames', '%05d.jpg');
   const audio = path.join(b, 'narration.wav');
   const output = path.join(b, `${job}.mp4`);
+  // The video must cover the whole narration: -shortest below would otherwise cut the audio tail silently.
+  if (fs.existsSync(audio)) {
+    const sec = wavSeconds(audio), vid = want / 30;
+    if (sec > vid + 0.1) throw new Error(`narration (${sec.toFixed(2)} s) is longer than the video (${vid.toFixed(2)} s): timing.json and narration.wav do not match. Re-run tts, then render.`);
+  }
   const args = ['-y', '-loglevel', 'error', '-framerate', '30', '-i', frames];
   if (fs.existsSync(audio)) args.push('-i', audio);
   args.push('-c:v', 'libx264', '-preset', 'medium', '-crf', '20', '-pix_fmt', 'yuv420p');
@@ -75,7 +92,8 @@ export function videoName(root, job) {
   const title = (meta.title || script.title || '').split(':')[0].trim();
   const slug = title.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().split(/\s+/).slice(0, 6).join('-').slice(0, 60);
   const lang = (script.lang || 'en').toLowerCase();
-  return `${job}${slug ? '_' + slug : ''}${lang !== 'en' ? '_' + lang : ''}.mp4`;
+  const suffix = lang !== 'en' && !job.toLowerCase().endsWith('_' + lang) ? '_' + lang : '';   // "_smoke_ko", not "_smoke_ko_ko"
+  return `${job}${slug ? '_' + slug : ''}${suffix}.mp4`;
 }
 export function publish(root, job, output) {
   const dir = videosDir(root); fs.mkdirSync(dir, { recursive: true });

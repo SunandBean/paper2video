@@ -65,7 +65,7 @@ into the tools folder, which survives updates. If the default `python3` is 3.14+
 | 1 | Fetch paper + license | `${CLAUDE_SKILL_DIR}/p2v fetch <arxiv id or link>` → `<jobs>/<id>/paper/{meta.json,paper.pdf,paper.txt}` and job skeleton |
 | 2 | Read + outline | Read `paper.txt` fully. Fill `<jobs>/<id>/BRIEF.md` (license block first, outline that follows the paper's own logic, shot list) |
 | 3 | Script | `<jobs>/<id>/script.json`: scenes → sentences `[subtitle, tts_text]` |
-| 4 | Claims | `<jobs>/<id>/claims.json`: every factual statement and every on-screen number, with source |
+| 4 | Claims | `<jobs>/<id>/claims.json`: every factual statement and every on-screen number, with source; `used_in` lists every sentence (`<scene id>.<index>`) that says or shows it |
 | 5 | Mechanical check | `${CLAUDE_SKILL_DIR}/p2v check <id>` → must be **FAIL 0, WARN 0** |
 | 6 | Independent verification | Fresh-context verifier subagent per `references/verification.md` → `<jobs>/<id>/VERIFY.md`. Fix and loop until it passes |
 | 7 | Scenes | `<jobs>/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |

@@ -47,7 +47,14 @@ function bg2d() {
 }
 function wrap(s, maxW, size) {
   ctx.font = `600 ${size}px ${FONT}`;
-  const words = s.split(' '); const lines = []; let cur = '';
+  // A word wider than the line (long CJK run, URL) is split by character so it cannot run off the frame.
+  const words = s.split(' ').flatMap(w => {
+    if (ctx.measureText(w).width <= maxW) return [w];
+    const parts = []; let p = '';
+    for (const ch of Array.from(w)) { if (p && ctx.measureText(p + ch).width > maxW) { parts.push(p); p = ch; } else p += ch; }
+    return p ? [...parts, p] : parts;
+  });
+  const lines = []; let cur = '';
   for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t; }
   if (cur) lines.push(cur); return lines;
 }

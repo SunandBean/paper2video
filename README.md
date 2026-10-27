@@ -68,6 +68,7 @@ Everything the skill does is also a terminal command, `p2v` in the skill folder:
 ```bash
 p2v doctor                 # folders and what is installed
 p2v smoke [--ko]           # toolchain test, should end with ALL PASS
+p2v test                   # fast regression tests for the checker and the local server
 p2v run <arxiv link>       # unattended run through `claude -p` (for cron or another bot)
 p2v help                   # fetch, check, tts, preview, render, collect, setup
 ```
