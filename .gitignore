@@ -1,6 +1,7 @@
 node_modules/
 models/
 .venv/
+.tools/
 jobs/*
 !jobs/2610.30340/
 !jobs/_smoke/

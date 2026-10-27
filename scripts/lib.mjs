@@ -3,17 +3,36 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 
+// Paths. Mirrors scripts/p2v_paths.py; ./p2v exports the resolved values as P2V_* env vars.
+const HOME = process.env.HOME || '';
+const expand = p => path.resolve(p.replace(/^~(?=\/|$)/, HOME));
+const real = p => { try { return fs.realpathSync(p); } catch { return path.resolve(p); } };
+const under = (p, base) => { p = real(p); base = real(base); return p === base || p.startsWith(base + path.sep); };
+function pluginId(root) {
+  const cache = real(path.join(HOME, '.claude', 'plugins', 'cache')), r = real(root);
+  if (!r.startsWith(cache + path.sep)) return null;
+  const parts = r.slice(cache.length + 1).split(path.sep);
+  return parts.length < 2 ? null : `${parts[1]}@${parts[0]}`.replace(/[^A-Za-z0-9_-]/g, '-');
+}
+export const toolsDir = root => process.env.P2V_TOOLS ? expand(process.env.P2V_TOOLS)
+  : pluginId(root) ? path.join(HOME, '.claude', 'plugins', 'data', pluginId(root)) : path.join(root, '.tools');
+export const workDir = root => process.env.P2V_HOME ? expand(process.env.P2V_HOME)
+  : under(root, path.join(HOME, '.claude')) ? path.join(HOME, 'paper2video') : root;
+export const jobsDir = root => process.env.P2V_JOBS ? expand(process.env.P2V_JOBS) : path.join(workDir(root), 'jobs');
+export const videosDir = root => process.env.P2V_OUT ? expand(process.env.P2V_OUT) : path.join(workDir(root), 'videos');
+// Node packages (three, ffmpeg-static, playwright) live in <tools>/node_modules.
+export const toolsRequire = root => createRequire(path.join(toolsDir(root), 'package.json'));
+
 // ffmpeg: $FFMPEG, then PATH, then the ffmpeg-static npm package.
 export function resolveFfmpeg(root) {
   if (process.env.FFMPEG) return process.env.FFMPEG;
   const r = spawnSync('ffmpeg', ['-version']);
   if (r.status === 0) return 'ffmpeg';
   try {
-    const require = createRequire(path.join(root, 'package.json'));
-    const p = require('ffmpeg-static');
+    const p = toolsRequire(root)('ffmpeg-static');
     if (p && fs.existsSync(p)) return p;
   } catch { /* fallthrough */ }
-  throw new Error('ffmpeg not found. Run ./setup.sh, install ffmpeg (brew install ffmpeg), or set FFMPEG=/path/to/ffmpeg');
+  throw new Error('ffmpeg not found. Run ./p2v setup, install ffmpeg (brew install ffmpeg), or set FFMPEG=/path/to/ffmpeg');
 }
 
 export function run(bin, args) {
@@ -22,7 +41,6 @@ export function run(bin, args) {
   return r.stdout.toString();
 }
 
-export const jobsDir = root => path.resolve((process.env.P2V_JOBS || path.join(root, 'jobs')).replace(/^~(?=\/|$)/, process.env.HOME || ''));
 
 export function mux(root, job, ffmpeg = resolveFfmpeg(root)) {
   const b = path.join(jobsDir(root), job, 'build');
@@ -44,9 +62,8 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root)) {
   return { output, contact, shortcut };
 }
 
-// Final videos land in one flat folder: $P2V_OUT or <skill>/videos/, named "<id>_<Short-Title>[_ko].mp4".
+// Final videos land in one flat folder: videosDir() ($P2V_OUT or <work>/videos/), named "<id>_<Short-Title>[_ko].mp4".
 // Hard link when possible (no extra disk), copy otherwise. Re-renders overwrite the same name.
-export const videosDir = root => path.resolve((process.env.P2V_OUT || path.join(root, 'videos')).replace(/^~(?=\/|$)/, process.env.HOME || ''));
 export function videoName(root, job) {
   const J = path.join(jobsDir(root), job);
   const read = f => { try { return JSON.parse(fs.readFileSync(path.join(J, f), 'utf8')); } catch { return {}; } };

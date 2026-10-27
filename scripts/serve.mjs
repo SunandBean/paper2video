@@ -10,7 +10,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { resolveFfmpeg, mux, jobsDir } from './lib.mjs';
+import { resolveFfmpeg, mux, jobsDir, toolsDir } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary' };
@@ -53,9 +53,12 @@ export function startServer(port = 8765, { onDone } = {}) {
       res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(status[parts[1]] || {})); return;
     }
     const rel = decodeURIComponent(u.pathname);
-    const baseDir = rel.startsWith('/jobs/') ? jobsDir(ROOT) : ROOT;
-    let p = path.join(baseDir, rel.startsWith('/jobs/') ? rel.slice(5) : rel);
-    if (!p.startsWith(baseDir)) { res.writeHead(403); res.end(); return; }
+    // /jobs/* -> jobs dir, /node_modules/* -> tools dir, everything else -> skill folder
+    const [baseDir, sub] = rel.startsWith('/jobs/') ? [jobsDir(ROOT), rel.slice(5)]
+      : rel.startsWith('/node_modules/') ? [path.join(toolsDir(ROOT), 'node_modules'), rel.slice(13)] : [ROOT, rel];
+    const p0 = path.join(baseDir, sub);
+    if (!p0.startsWith(baseDir)) { res.writeHead(403); res.end(); return; }
+    let p = p0;
     if (u.pathname === '/') p = path.join(ROOT, 'engine', 'index.html');
     fs.readFile(p, (e, d) => {
       if (e) { res.writeHead(404); res.end('not found'); return; }

@@ -12,8 +12,8 @@ Respects the arXiv API terms: at most one request every 3 seconds.
 import json, os, re, shutil, subprocess, sys, time, html, urllib.request
 from datetime import datetime, timezone
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JOBS = os.path.abspath(os.path.expanduser(os.environ.get('P2V_JOBS') or os.path.join(ROOT, 'jobs')))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from p2v_paths import ROOT, JOBS  # noqa: E402
 UA = {'User-Agent': 'paper2video/0.1 (personal research explainer)'}
 
 LICENSES = {

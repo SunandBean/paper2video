@@ -1,0 +1,12 @@
+{
+  "name": "sunandbean",
+  "description": "Claude Code plugins by Sunbin Kim",
+  "owner": { "name": "Sunbin Kim", "url": "https://github.com/SunandBean" },
+  "plugins": [
+    {
+      "name": "paper2video",
+      "source": "./",
+      "description": "arXiv paper in, narrated and fact-checked explainer video out"
+    }
+  ]
+}

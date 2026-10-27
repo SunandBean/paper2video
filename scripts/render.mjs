@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Render a job to MP4, or make preview contact sheets.
-//   node scripts/render.mjs <job>            full render (frames -> mp4) via headless Chromium (Playwright)
+//   ./p2v render <job>     (= node scripts/render.mjs <job>)            full render (frames -> mp4) via headless Chromium (Playwright)
 //   node scripts/render.mjs <job> --preview  contact sheets at every sentence midpoint -> build/preview_*.jpg
 //   node scripts/render.mjs <job> --manual   start server and print a capture URL to open in any browser
 // Needs build/timing.json from scripts/tts.py first.
@@ -8,7 +8,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
-import { jobsDir } from './lib.mjs';
+import { pathToFileURL } from 'node:url';
+import { jobsDir, toolsRequire } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const job = process.argv[2];
@@ -17,14 +18,14 @@ const manual = process.argv.includes('--manual');
 const port = parseInt(process.env.PORT || '8765', 10);
 if (!job) { console.error('usage: node scripts/render.mjs <job> [--preview|--manual]'); process.exit(2); }
 const B = path.join(jobsDir(ROOT), job, 'build');
-if (!fs.existsSync(path.join(B, 'timing.json'))) { console.error(`missing ${B}/timing.json. Run: ./.venv/bin/python scripts/tts.py ${job}`); process.exit(2); }
+if (!fs.existsSync(path.join(B, 'timing.json'))) { console.error(`missing ${B}/timing.json. Run: ./p2v tts ${job}`); process.exit(2); }
 // Refuse stale inputs: narration/timing must be newer than script.json (tts.py rewrites both).
 {
   const m = f => fs.statSync(f).mtimeMs;
   const script = path.join(jobsDir(ROOT), job, 'script.json'), timing = path.join(B, 'timing.json'), wav = path.join(B, 'narration.wav');
   const stale = m(timing) < m(script) || (fs.existsSync(wav) && Math.abs(m(wav) - m(timing)) > 120000);
   if (stale && !process.argv.includes('--allow-stale')) {
-    console.error(`stale narration: build/timing.json (${new Date(m(timing)).toLocaleString()}) is older than script.json or does not match narration.wav.\nRun ./.venv/bin/python scripts/tts.py ${job} first (or pass --allow-stale).`);
+    console.error(`stale narration: build/timing.json (${new Date(m(timing)).toLocaleString()}) is older than script.json or does not match narration.wav.\nRun ./p2v tts ${job} first (or pass --allow-stale).`);
     process.exit(2);
   }
   console.log(`timing.json from ${new Date(m(timing)).toLocaleString()}`);
@@ -43,8 +44,8 @@ if (manual) {
 }
 
 let chromium;
-try { ({ chromium } = await import('playwright')); }
-catch { console.error('Playwright not installed. Run ./setup.sh, or use --manual and open the URL in any browser.'); srv.close(); process.exit(2); }
+try { const pw = await import(pathToFileURL(toolsRequire(ROOT).resolve('playwright')).href); chromium = pw.chromium || pw.default.chromium; }
+catch { console.error('Playwright not installed. Run ./p2v setup, or use --manual and open the URL in any browser.'); srv.close(); process.exit(2); }
 
 const browser = await chromium.launch({ headless: true, args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] });
 const page = await browser.newPage({ viewport: { width: 1280, height: 720 } });

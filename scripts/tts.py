@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Narration + timing for a job.
 
-    python3 scripts/tts.py <job> [--engine kokoro|supertonic|silent] [--voice af_heart] [--speed 1.0]
+    ./p2v tts <job> [--engine kokoro|supertonic|silent] [--voice af_heart] [--speed 1.0]
 
 Reads jobs/<job>/script.json and writes
     jobs/<job>/build/audio/*.wav, build/narration.wav, build/timing.json
@@ -11,7 +11,7 @@ animations can key off sentence boundaries (S.P(k) in scenes.js).
 
 Engines (picked from script.json "lang" unless tts.engine is set)
   kokoro      English (default for lang "en"). Local, Apache-2.0 weights. Voices: af_heart, am_michael, bf_emma, ...
-              Models auto-download to models/.
+              Models auto-download to <tools>/models/ (see scripts/p2v_paths.py).
   supertonic  Korean and 30 other languages (default for any lang other than "en"). Local ONNX, Supertonic 3,
               OpenRAIL-M weights. Voices: F1-F5, M1-M5. Model auto-downloads on first use (Hugging Face cache).
   silent      no audio; durations estimated from word count. For layout previews only.
@@ -20,11 +20,10 @@ import argparse, json, os, sys, wave, urllib.request
 try:
     import numpy as np
 except ModuleNotFoundError:
-    sys.exit('numpy missing: run ./setup.sh (needs Python 3.10-3.13) and use ./.venv/bin/python scripts/tts.py')
+    sys.exit('numpy missing: run ./p2v setup, then ./p2v tts <job>')
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JOBS = os.path.abspath(os.path.expanduser(os.environ.get('P2V_JOBS') or os.path.join(ROOT, 'jobs')))
-MODELS = os.path.join(ROOT, 'models')
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from p2v_paths import ROOT, JOBS, MODELS  # noqa: E402
 SR = 24000  # set per engine in main()
 KOKORO_FILES = {
     'kokoro-v1.0.onnx': 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx',

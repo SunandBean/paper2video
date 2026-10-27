@@ -4,7 +4,8 @@ description: Turn an arXiv paper into a narrated, fact-checked explainer video (
 argument-hint: <arxiv link or id> [overrides]
 disable-model-invocation: true
 license: MIT
-compatibility: Claude Code with a local shell. Needs Node 18+, Python 3.10-3.13, ~1 GB disk (voice model + headless Chromium). Run ./setup.sh once.
+compatibility: Claude Code with a local shell. Needs Node 18+, Python 3.10-3.13, ~1 GB disk (voice model + headless Chromium). Tools install on first run.
+allowed-tools: Bash(${CLAUDE_SKILL_DIR}/p2v *)
 ---
 
 # paper2video
@@ -14,9 +15,11 @@ Paper in, explainer video out. The user picks the paper; everything after that i
 
 Paper to process: **$ARGUMENTS**
 
-Skill folder: `${CLAUDE_SKILL_DIR}`. `cd` there first; all commands run from it.
-Job outputs go to `$P2V_JOBS` if set, otherwise `${CLAUDE_SKILL_DIR}/jobs/`.
-If `.venv/` is missing, run `./setup.sh` first (one time).
+Every step runs through one command, `P2V="${CLAUDE_SKILL_DIR}/p2v"` (works from any directory).
+1. Run `"$P2V" doctor`. It prints the folders (skill, tools, jobs, videos). If it ends with `-> run: ... setup`,
+   tell the user "first run: installing tools (~1 GB, a few minutes)" and run `"$P2V" setup` once.
+2. Write job files in the **jobs** folder that doctor printed (`<jobs>/<id>/`), never in the skill folder.
+   Installed copies keep jobs and videos in `~/paper2video/`; a development clone keeps them in the repo.
 
 ## Input
 Only the arXiv link or id is required (`https://arxiv.org/pdf/2610.35607`, `.../abs/...v2`, `2610.35607`).
@@ -29,7 +32,7 @@ Run the whole pipeline below with these defaults:
 | Language / voice | **English**, Kokoro `af_heart` | `ko` / `Korean` / `한국어` → Korean (Supertonic 3 voice `F1`); another voice id (Kokoro `am_michael`..., Supertonic `F1`-`F5`, `M1`-`M5`) |
 | Verification | step 6 always runs in a **fresh-context subagent**, all 5 layers; equations and derivations (not machine-checkable) are checked by the verifier against paper.txt with the evidence written in VERIFY.md | n/a (never skipped) |
 | Fix loop | fix and re-verify up to 3 rounds, then stop with BLOCKED and the open items | n/a |
-| Templates | move any new scene that would work for other papers into `engine/templates.js` | n/a |
+| Templates | if the skill folder is a git clone you can edit, move any new scene that would work for other papers into `engine/templates.js`; otherwise (plugin install) keep it in the job's `scenes.js` and list it as a template candidate in the report | n/a |
 | Publishing | never upload or post anywhere; the MP4 is the end product | n/a |
 | Git | do not commit; leave changes for review | "commit it" |
 
@@ -47,26 +50,25 @@ When the overrides ask for Korean:
 - Rendering needs a Korean font (macOS has Apple SD Gothic Neo; on Linux install Noto Sans CJK).
 
 ## Final report (always, at the end)
-Per step: done / failed + output path · VERIFY.md verdict and open items · video path in `videos/` + length ·
+Per step: done / failed + output path · VERIFY.md verdict and open items · video path in the videos folder + length ·
 new templates added · wall-clock time · anything the user should look at first.
-One-time setup: `./setup.sh` (node deps, ffmpeg, Playwright Chromium, Python 3.10-3.13 venv, Kokoro voice models).
-If the default `python3` is 3.14+, setup picks python3.13/3.12 automatically, or set `PYTHON=/path/to/python3.12`.
-Use `./.venv/bin/python` for the Python scripts.
+Setup (`"$P2V" setup`) installs Node packages, ffmpeg, Playwright Chromium, a Python 3.10-3.13 venv and the Kokoro voice model
+into the tools folder, which survives updates. If the default `python3` is 3.14+, it picks 3.13/3.12, or set `PYTHON=/path/to/python3.12`.
 
 ## Pipeline
 
 | # | Step | Command / output |
 |---|---|---|
-| 1 | Fetch paper + license | `./.venv/bin/python scripts/fetch_paper.py <arxiv id or link>` → `jobs/<id>/paper/{meta.json,paper.pdf,paper.txt}` and job skeleton |
-| 2 | Read + outline | Read `paper.txt` fully. Fill `jobs/<id>/BRIEF.md` (license block first, outline that follows the paper's own logic, shot list) |
-| 3 | Script | `jobs/<id>/script.json`: scenes → sentences `[subtitle, tts_text]` |
-| 4 | Claims | `jobs/<id>/claims.json`: every factual statement and every on-screen number, with source |
-| 5 | Mechanical check | `./.venv/bin/python scripts/check_claims.py <id>` → must be **FAIL 0, WARN 0** |
-| 6 | Independent verification | Fresh-context verifier subagent per `references/verification.md` → `jobs/<id>/VERIFY.md`. Fix and loop until it passes |
-| 7 | Scenes | `jobs/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |
-| 8 | Narration + timing | `./.venv/bin/python scripts/tts.py <id>` → `build/narration.wav`, `build/timing.json` |
-| 9 | Preview QA | `node scripts/render.mjs <id> --preview` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
-| 10 | Render | `node scripts/render.mjs <id>` → `videos/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `--manual`, open the URL in any browser) |
+| 1 | Fetch paper + license | `"$P2V" fetch <arxiv id or link>` → `<jobs>/<id>/paper/{meta.json,paper.pdf,paper.txt}` and job skeleton |
+| 2 | Read + outline | Read `paper.txt` fully. Fill `<jobs>/<id>/BRIEF.md` (license block first, outline that follows the paper's own logic, shot list) |
+| 3 | Script | `<jobs>/<id>/script.json`: scenes → sentences `[subtitle, tts_text]` |
+| 4 | Claims | `<jobs>/<id>/claims.json`: every factual statement and every on-screen number, with source |
+| 5 | Mechanical check | `"$P2V" check <id>` → must be **FAIL 0, WARN 0** |
+| 6 | Independent verification | Fresh-context verifier subagent per `references/verification.md` → `<jobs>/<id>/VERIFY.md`. Fix and loop until it passes |
+| 7 | Scenes | `<jobs>/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |
+| 8 | Narration + timing | `"$P2V" tts <id>` → `build/narration.wav`, `build/timing.json` |
+| 9 | Preview QA | `"$P2V" preview <id>` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
+| 10 | Render | `"$P2V" render <id>` → `<videos>/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `render <id> --manual`, open the URL in any browser) |
 | 11 | Final checks | Re-run step 5 (scenes may have added numbers). Watch `contact.jpg` |
 | 12 | Report | Final report (below). If `local/*.md` exists in the skill folder, follow those personal add-on steps after this one |
 
@@ -84,14 +86,15 @@ Re-runs: steps 8 to 11 are idempotent. Change `script.json` → re-run 5, 8, 9, 
 ## Files
 - `engine/` timeline player (`main.js`), 3D/2D primitives (`core.js`), reusable templates (`templates.js`)
 - `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg)
+- `p2v` single entry point (setup, doctor, fetch, check, tts, preview, render, collect, smoke, run); `scripts/p2v_paths.py` decides the folders
 - `templates/job/` skeleton copied into new jobs
-- `jobs/2610.30340/` complete worked example (Foundation4D, 14 scenes, 66 claims, 4.6 min)
+- `jobs/2610.30340/` complete worked example (copied into the jobs folder on first use) (Foundation4D, 14 scenes, 66 claims, 4.6 min)
 - `jobs/_smoke/` and `jobs/_smoke_ko/` short template-only jobs for testing the toolchain (English / Korean)
 - `references/` verification, scene authoring, licensing
 - `local/` (optional, git-ignored) your own add-on steps, e.g. a publishing checklist
 
-## Smoke test (after ./setup.sh)
+## Smoke test (after setup)
 ```bash
-./scripts/smoke.sh        # English; stops at the first failing step; render.mjs refuses stale narration
-./scripts/smoke.sh --ko   # also tests Korean narration (downloads the Supertonic model on first run)
+"$P2V" smoke        # English; stops at the first failing step; render refuses stale narration
+"$P2V" smoke --ko   # also tests Korean narration (downloads the Supertonic model on first run)
 ```

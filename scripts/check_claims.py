@@ -14,8 +14,8 @@ Writes build/VERIFY_auto.md. Exit code 1 if anything FAILs. WARNs go to the veri
 """
 import json, os, re, sys, unicodedata
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-JOBS = os.path.abspath(os.path.expanduser(os.environ.get('P2V_JOBS') or os.path.join(ROOT, 'jobs')))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from p2v_paths import ROOT, JOBS  # noqa: E402
 
 def norm(s):
     s = unicodedata.normalize('NFKC', s)

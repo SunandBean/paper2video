@@ -25,14 +25,28 @@ All visuals are generated; every on-screen number traces back to a quote or tabl
 
 ## Install
 
-Requires Claude Code, Node 18+, Python 3.10-3.13, ~1 GB disk.
+Requires Claude Code, Node 18+, Python 3.10-3.13 and about 1 GB of disk.
+
+**Option A: plugin (recommended).** In any Claude Code session:
+
+```
+/plugin marketplace add SunandBean/paper2video
+/plugin install paper2video@sunandbean
+```
+
+That's it. The first `/paper2video` run installs the tools (Node packages, ffmpeg, headless Chromium, Python venv, voice model; a few minutes, once).
+Updates: `/plugin marketplace update sunandbean`, or turn on auto-update for the marketplace in `/plugin` → Marketplaces.
+
+**Option B: one-line script.** In a terminal:
 
 ```bash
-git clone https://github.com/SunandBean/paper2video ~/.claude/skills/paper2video      # or clone anywhere and symlink it there
-cd ~/.claude/skills/paper2video
-./setup.sh            # node deps, ffmpeg, headless Chromium, Python venv, voice model
-./scripts/smoke.sh    # toolchain test, should end with ALL PASS (add --ko to test Korean)
+curl -fsSL https://raw.githubusercontent.com/SunandBean/paper2video/main/install.sh | bash
 ```
+
+This clones into `~/.claude/skills/paper2video` and installs the tools right away. Run the same line again to update.
+
+Either way, your jobs and finished videos live in `~/paper2video/` and survive updates. The tools live separately
+(plugin data folder for A, `.tools/` inside the clone for B), so updating never re-downloads the 1 GB toolchain.
 
 ## Use
 
@@ -46,15 +60,24 @@ In any Claude Code session:
 
 The skill only runs when you call it (`disable-model-invocation: true`); pasting a paper link in a normal chat does nothing special.
 
-Finished videos appear in `videos/` with readable names (e.g. `videos/2610.30340_Foundation4D.mp4`); set `P2V_OUT` to use another folder.
-Working files stay in `jobs/<id>/` (or `$P2V_JOBS/<id>/`). `node scripts/collect.mjs` re-collects all finished videos.
-Unattended run from a terminal or another bot: `./run.sh <arxiv link or id>`.
+Finished videos appear in `~/paper2video/videos/` with readable names (e.g. `2610.30340_Foundation4D.mp4`); working files stay in `~/paper2video/jobs/<id>/`.
+Override with `P2V_HOME` (both), `P2V_OUT` (videos) or `P2V_JOBS` (jobs).
+
+Everything the skill does is also a terminal command, `p2v` in the skill folder:
+
+```bash
+p2v doctor                 # folders and what is installed
+p2v smoke [--ko]           # toolchain test, should end with ALL PASS
+p2v run <arxiv link>       # unattended run through `claude -p` (for cron or another bot)
+p2v help                   # fetch, check, tts, preview, render, collect, setup
+```
 
 ## What's inside
 
 - `SKILL.md` workflow and defaults the agent follows
 - `engine/` timeline player, 3D/2D primitives, templates
-- `scripts/` fetch (with license detection), TTS, claims check, render/mux, smoke test
+- `p2v` single command for every step; `scripts/` fetch (with license detection), TTS, claims check, render/mux
+- `.claude-plugin/` plugin and marketplace manifests; `install.sh` for the git-clone route
 - `references/` verification layers, scene authoring, licensing
 - `local/` optional, git-ignored: put your own extra steps here (e.g. a publishing checklist); the skill runs them after its final report
 - `jobs/2610.30340/` worked example (Foundation4D, NVIDIA, CC BY 4.0), `jobs/_smoke/`, `jobs/_smoke_ko/` toolchain tests

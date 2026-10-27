@@ -1,0 +1,9 @@
+{
+  "name": "paper2video",
+  "description": "Turn an arXiv paper into a narrated, fact-checked explainer video (1080p MP4). Local TTS, no API keys, never uploads.",
+  "author": { "name": "Sunbin Kim", "url": "https://github.com/SunandBean" },
+  "homepage": "https://github.com/SunandBean/paper2video",
+  "repository": "https://github.com/SunandBean/paper2video",
+  "license": "MIT",
+  "keywords": ["arxiv", "paper", "video", "explainer", "tts", "threejs"]
+}
