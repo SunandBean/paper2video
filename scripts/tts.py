@@ -21,7 +21,7 @@ import argparse, hashlib, json, os, sys, wave, urllib.request
 np = None  # imported in main(): `--download-models` must work before the venv is proven importable
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from p2v_paths import ROOT, JOBS, MODELS  # noqa: E402
+from p2v_paths import JOBS, MODELS  # noqa: E402
 SR = 24000  # set per engine in main()
 REL = 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/'
 KOKORO_FILES = {  # name: (size, sha256) of the model-files-v1.0 release assets

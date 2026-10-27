@@ -32,7 +32,7 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
   const finish = job => onDone && onDone(job, status[job]);
   const srv = http.createServer(async (req, res) => {
     try {
-      const u = new URL(req.url, 'http://x');
+      const u = new URL('http://x' + (req.url.startsWith('/') ? req.url : '/' + req.url));   // "//a" is a path here, not a host
       const parts = u.pathname.split('/').filter(Boolean).map(decodeURIComponent);
       if (req.method === 'POST') {
         const [kind, job, n] = parts;
@@ -79,6 +79,7 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
       const [base, sub] = rel.startsWith('/jobs/') ? [JOBS, rel.slice(6)]
         : rel.startsWith('/node_modules/') ? [NODE, rel.slice(14)]
         : [ROOT, rel === '/' ? 'engine/index.html' : rel.slice(1)];
+      if (sub.includes('\0')) { res.writeHead(400); res.end(); return; }
       const p = path.resolve(base, sub);
       // Only the player's own files: no dotfiles (.tools, .git), nothing outside its base folder.
       if (!inside(base, p) || (base === ROOT && /(^|[\\/])\./.test(path.relative(ROOT, p)))) { res.writeHead(403); res.end(); return; }
@@ -91,7 +92,9 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
         res.end(d);
       });
     } catch (e) {
-      if (!res.headersSent) { res.writeHead(500); res.end(String(e.message || e)); }
+      // malformed %-encoding, NUL bytes or bad JSON are the client's fault: 400, not 500
+      const bad = e instanceof URIError || e instanceof SyntaxError || e?.code === 'ERR_INVALID_ARG_VALUE' || e?.code === 'ERR_INVALID_ARG_TYPE' || e?.code === 'ERR_INVALID_URL';
+      if (!res.headersSent) { res.writeHead(bad ? 400 : 500); res.end(String(e.message || e)); }
     }
   });
   srv.on('error', e => {

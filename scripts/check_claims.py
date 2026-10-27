@@ -16,7 +16,7 @@ Writes build/VERIFY_auto.md. Exit code 1 if anything FAILs. WARNs go to the veri
 import json, os, re, sys, unicodedata
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from p2v_paths import ROOT, JOBS  # noqa: E402
+from p2v_paths import JOBS  # noqa: E402
 
 def norm(s):
     s = unicodedata.normalize('NFKC', s)
@@ -53,16 +53,19 @@ def spoken_numbers(s):
     toks = re.findall(r"[a-z]+|[,.;:!?]", s.lower().replace('-', ' '))
     out, i = [], 0
     while i < len(toks):
-        if toks[i] == 'point' and i + 1 < len(toks) and toks[i + 1] in _UNITS and _UNITS[toks[i + 1]] < 10 \
+        if toks[i] == 'point' and i + 1 < len(toks) and (toks[i + 1] == 'oh' or toks[i + 1] in _UNITS and _UNITS[toks[i + 1]] < 10) \
                 and not (i and (toks[i - 1] in _UNITS or toks[i - 1] in _TENS)):        # "point five" = 0.5
             j, d = i + 1, ''
-            while j < len(toks) and toks[j] in _UNITS and _UNITS[toks[j]] < 10: d += str(_UNITS[toks[j]]); j += 1
+            while j < len(toks) and (toks[j] == 'oh' or toks[j] in _UNITS and _UNITS[toks[j]] < 10): d += str(_UNITS.get(toks[j], 0)); j += 1
             out.append(('0.' + d).rstrip('0').rstrip('.') or '0'); i = j; continue
         if toks[i] not in _UNITS and toks[i] not in _TENS and not (toks[i] == 'a' and i + 1 < len(toks) and toks[i + 1] in _SCALE):
             i += 1; continue
         j, total, cur, words = i, 0, 0, 0
         while j < len(toks):
             t = toks[j]
+            if 10 <= cur <= 99 and not total and words in (1, 2) and t == 'oh' and j + 1 < len(toks) \
+                    and toks[j + 1] in _UNITS and 0 < _UNITS[toks[j + 1]] < 10:          # "nineteen oh five" = 1905
+                cur = cur * 100 + _UNITS[toks[j + 1]]; j += 2; words += 2; break
             two_digit_next = (t in _TENS) or (t in _UNITS and _UNITS[t] >= 10)
             if 10 <= cur <= 99 and not total and two_digit_next and words in (1, 2):
                 # year reading: "nineteen ninety" = 1990, "twenty twenty six" = 2026
@@ -80,12 +83,14 @@ def spoken_numbers(s):
                 if _SCALE[t] == 100: cur *= 100
                 else: total += cur * _SCALE[t]; cur = 0
             elif t == 'and' and words and j + 1 < len(toks) and (toks[j + 1] in _UNITS or toks[j + 1] in _TENS): pass
+            elif t == ',' and j and toks[j - 1] in ('thousand', 'million', 'billion') and j + 1 < len(toks) \
+                    and (toks[j + 1] in _UNITS or toks[j + 1] in _TENS): pass      # "one thousand, one hundred"
             else: break
             words += 1; j += 1
         val = str(total + cur)
-        if j < len(toks) and toks[j] == 'point' and j + 1 < len(toks) and toks[j + 1] in _UNITS:
+        if j < len(toks) and toks[j] == 'point' and j + 1 < len(toks) and (toks[j + 1] in _UNITS or toks[j + 1] == 'oh'):
             d = ''; j += 1
-            while j < len(toks) and toks[j] in _UNITS and _UNITS[toks[j]] < 10: d += str(_UNITS[toks[j]]); j += 1
+            while j < len(toks) and (toks[j] == 'oh' or toks[j] in _UNITS and _UNITS[toks[j]] < 10): d += str(_UNITS.get(toks[j], 0)); j += 1
             val = (val + '.' + d).rstrip('0').rstrip('.'); words += 2
         if not (words == 1 and toks[i] in ('one', 'zero')):
             out.append(val)

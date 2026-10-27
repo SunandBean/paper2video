@@ -69,7 +69,8 @@ def main():
     page = get(abs_url).decode('utf-8', 'replace')
     meta_tag = lambda n: [html.unescape(m) for m in re.findall(rf'<meta name="{n}" content="([^"]*)"', page)]
     lic_url = license_url(page)
-    lic_name = next((v for k, v in LICENSES.items() if k in lic_url), 'UNKNOWN: check the abs page')
+    lic_name = next((v for k, v in LICENSES.items() if k in lic_url),
+                    'UNKNOWN: check the abs page' if lic_url else 'none listed (older arXiv papers: default terms, no reuse grant)')
     meta = {
         'id': aid, 'version': ver or 'latest', 'job': job, 'title': (meta_tag('citation_title') or [''])[0], 'authors': meta_tag('citation_author'),
         'date': (meta_tag('citation_date') or [''])[0], 'abs_url': abs_url, 'pdf_url': f'https://arxiv.org/pdf/{aid}{ver}',

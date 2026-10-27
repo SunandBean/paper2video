@@ -72,6 +72,17 @@ await t('mux refuses narration longer than the video', async () => {
   fs.writeFileSync(path.join(b, 'narration.wav'), Buffer.concat([h, pcm]));
   assert.throws(() => mux(path.resolve('.'), 'j1', 'ffmpeg', 3), /longer than the video/);
 });
+await t('random escape attempts never leak (2000 paths)', async () => {
+  const pieces = ['..', '%2e%2e', '%2E%2E', '.%2e', '%2f', '%5c', '\\', '/', '//', '%252e%252e', '%00', 'jobs', 'j1', 'jobs-secret',
+    's.txt', 'engine', '.git', 'link', '%c0%ae', '%', '~', '.'];
+  for (let i = 0; i < 2000; i++) {
+    const p = (i % 2 ? '/jobs/' : '/') + Array.from({ length: 1 + (i % 6) }, () => pieces[Math.floor(Math.random() * pieces.length)]).join(i % 3 ? '/' : '');
+    const r = await fetch(base + p).catch(() => null);
+    if (!r) continue;
+    assert.ok(r.status !== 500, `500 for ${p}`);
+    assert.ok(!(await r.text()).includes('SECRET'), `leak for ${p}`);
+  }
+});
 await t('listens on loopback only', async () => assert.equal(srv.address().address, '127.0.0.1'));
 
 srv.close();

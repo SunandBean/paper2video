@@ -111,7 +111,12 @@ doctor() {
   if [ -x "$PY" ] && "$PY" -c "import kokoro_onnx, soundfile, pypdf, supertonic" 2>/dev/null; then echo "python  ok ($("$PY" -V))"; else echo "python  missing"; ok=0; fi
   if [ -s "$P2V_TOOLS/models/kokoro-v1.0.onnx" ]; then echo "voice   ok"; else echo "voice   missing"; ok=0; fi
   command -v node >/dev/null || { echo "node    missing (install Node 18+)"; return 1; }
-  local ff; ff=$(cd "$ROOT" && node -e "import('./scripts/lib.mjs').then(m=>console.log(m.resolveFfmpeg(process.env.P2V_ROOT)))" 2>/dev/null) && echo "ffmpeg  ok ($ff)" || { echo "ffmpeg  missing"; ok=0; }
+  local ff
+  if ff=$(cd "$ROOT" && node -e "import('./scripts/lib.mjs').then(m=>console.log(m.resolveFfmpeg(process.env.P2V_ROOT)))" 2>/dev/null); then
+    echo "ffmpeg  ok ($ff)"
+  else
+    echo "ffmpeg  missing"; ok=0
+  fi
   [ -d "$P2V_TOOLS/node_modules/playwright" ] && echo "render  ok (playwright)" || echo "render  manual only (no playwright)"
   [ $ok = 1 ] || { echo "-> run: $ROOT/p2v setup"; return 1; }
 }
