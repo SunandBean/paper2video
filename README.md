@@ -1,6 +1,6 @@
 # paper2video
 
-A Claude Code skill: arXiv paper in, narrated and fact-checked explainer video out.
+A Claude Code plugin (one skill, `/paper2video`): arXiv paper in, narrated and fact-checked explainer video out.
 
 ```
 /paper2video https://arxiv.org/abs/2610.30340
@@ -24,6 +24,8 @@ All visuals are generated; every on-screen number traces back to a quote or tabl
 - **Output:** 1080p30 MP4, contact sheet, verification report. It never uploads or posts anything.
 
 ## Install
+
+Tested so far with Claude Opus 5.5 at medium effort; other models and effort levels have not been tried yet.
 
 Requires Claude Code, git, Node 18+, Python 3.10-3.13 and about 1 GB of disk (Option B also uses curl). macOS or Linux; Korean videos on Linux need Noto Sans CJK.
 
