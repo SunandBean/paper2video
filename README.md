@@ -20,7 +20,7 @@ All visuals are generated; every on-screen number traces back to a quote or tabl
 
 - **Scenes:** Three.js (3D) + canvas (2D), timed to the narration; reusable templates plus custom scenes per paper
 - **Narration:** English by default (Kokoro, local, Apache-2.0); Korean and 30 other languages with `ko`, `ja`, ... (Supertonic 3, local, OpenRAIL-M). No API keys
-- **Cross-check:** every number and claim is tied to a quote or table row in the paper and checked mechanically (`scripts/check_claims.py`), then by an independent verifier subagent (`references/verification.md`)
+- **Cross-check:** every number and claim is tied to a quote or table row in the paper and checked mechanically against the paper text and against every string the renderer actually drew (`scripts/check_claims.py`), then by an independent verifier subagent (`references/verification.md`)
 - **Output:** 1080p30 MP4, contact sheet, verification report. It never uploads or posts anything.
 
 ## Install

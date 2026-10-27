@@ -728,7 +728,7 @@
    "used_in": [
     "limits.1"
    ],
-   "text": "component times at T=48",
+   "text": "Image encoder 4.455 s at T=48 → shown as 4.5s",
    "table": "Table 17",
    "row": "Image encoder",
    "values": [
@@ -743,10 +743,73 @@
    ],
    "text": "better suited to offline labeling/simulation than real-time driving",
    "on_screen_label": "narration frames it as 'think of it as'; based on c63 (19.8 s per window). The on-screen flow box states it as fact: verifier to judge."
+  },
+  {
+   "id": "c67",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "Spatiotemporal aggregator 3.305 s at T=48 → shown as 3.3s",
+   "table": "Table 17",
+   "row": "Spatiotemporal aggregator",
+   "values": [
+    "3.305"
+   ]
+  },
+  {
+   "id": "c68",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "Geometry heads 3.559 s at T=48 → shown as 3.6s",
+   "table": "Table 17",
+   "row": "Geometry heads",
+   "values": [
+    "3.559"
+   ]
+  },
+  {
+   "id": "c69",
+   "kind": "quote",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "Occupancy head 2.104 s at T=48 (values sit on the line below the row label in the extracted text) → shown as 2.1s",
+   "quote": "1.060 1.576 2.104"
+  },
+  {
+   "id": "c70",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "3DGS heads 6.155 s at T=48 → shown as 6.2s (bar labeled 'Gaussian')",
+   "table": "Table 17",
+   "row": "3DGS heads",
+   "values": [
+    "6.155"
+   ]
+  },
+  {
+   "id": "c71",
+   "kind": "derived",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "'Det' bar = shared DET/OCC neck 0.028 + detection head 0.168 = 0.196 s (bar too narrow for a number label)",
+   "from": [
+    "c65"
+   ],
+   "derivation": "Table 17, T=48: 0.028 + 0.168 = 0.196",
+   "on_screen_label": "no number shown for this bar"
   }
  ],
  "allow_numbers": {
   "2610.30340": "arXiv id",
-  "2026.10": "arXiv submission month (Oct 2026)"
+  "2026.10": "arXiv submission month (Oct 2026)",
+  "35": "y-axis gridline label of the mAP vs context chart (detect scene)",
+  "45": "y-axis gridline label of the mAP vs context chart (detect scene)"
  }
 }

@@ -71,7 +71,7 @@ export function detect() {
       chip(ctx, 'Sample only where needed (deformable attention)', 80, 200, C.yellow, Math.sin(Math.PI * seg(p1, 0, .45)), 26);
       const ba = eo(seg(p1, .65, .9));
       chip(ctx, '3D box + velocity', 80, 200, C.green, ba * (1 - eo(seg(p2, 0, .1))), 28);
-      cars.forEach(c => { if (ba <= 0) return; const p = project(new THREE.Vector3(c.x + c.v * cache.t * .35, 2.4, c.z), cache.cam); if (p.x < 0 || p.x > W) return; txt(ctx, `car · ${Math.abs(c.v * 3.6 * 2).toFixed(0)} km/h`, p.x, p.y - 26, { size: 21, align: 'center', weight: 700, color: C.green, alpha: ba, shadow: true }); });
+      cars.forEach(c => { if (ba <= 0) return; const p = project(new THREE.Vector3(c.x + c.v * cache.t * .35, 2.4, c.z), cache.cam); if (p.x < 0 || p.x > W) return; txt(ctx, `car · velocity ${c.v >= 0 ? '→' : '←'}`, p.x, p.y - 26, { size: 21, align: 'center', weight: 700, color: C.green, alpha: ba, shadow: true }); });
       const a2 = eo(seg(p2, 0, .2));
       if (a2 <= 0) return;
       const x = 1180, y = 130, w = 680, h = 430;

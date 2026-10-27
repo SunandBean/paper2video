@@ -16,7 +16,8 @@
 # Folders (details in scripts/p2v_paths.py): code stays in the skill folder, tools in P2V_TOOLS,
 # jobs and videos in P2V_HOME (~/paper2video for installed copies). All four can be overridden by env vars.
 set -euo pipefail
-ROOT="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")")" && pwd)"
+# Logical path (symlinked skill folders keep their ~/.claude/skills/... spelling, which is what permission rules see).
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SYSPY="$(command -v python3 || true)"
 [ -n "$SYSPY" ] || { echo "p2v: python3 not found (need Python 3.10-3.13)"; exit 1; }
 eval "$("$SYSPY" "$ROOT/scripts/p2v_paths.py" --shell)"
@@ -26,7 +27,12 @@ need_tools() {
   [ -x "$PY" ] && [ -d "$P2V_TOOLS/node_modules/three" ] && return 0
   echo "p2v: tools are not installed yet ($P2V_TOOLS). Run: $ROOT/p2v setup"; exit 3
 }
-need_job() { [ -n "${1:-}" ] || { echo "usage: p2v $CMD <job>"; exit 2; }; }
+need_job() {
+  [ -n "${1:-}" ] || { echo "usage: p2v $CMD <job>"; exit 2; }
+  [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]*$ ]] || { echo "p2v: '$1' is not a job id (letters, digits, . _ - only)"; exit 2; }
+  seed_job "$1"
+  [ -d "$P2V_JOBS/$1" ] || { echo "p2v: no job '$1' in $P2V_JOBS (run: p2v fetch <arxiv link> first)"; exit 2; }
+}
 # Bundled example jobs (2610.30340, _smoke, _smoke_ko) ship inside the skill folder.
 # Copy one into the work dir the first time it is used, so builds never write into the skill folder.
 seed_job() {
@@ -59,9 +65,15 @@ setup() {
   echo "== tools folder: $T"
   mkdir -p "$T"
   command -v node >/dev/null || { echo "!! Node 18+ is required (brew install node)"; exit 1; }
+  [ "$(node -p 'process.versions.node.split(".")[0]')" -ge 18 ] || { echo "!! Node 18+ is required (found $(node -v))"; exit 1; }
+  command -v npm >/dev/null || { echo "!! npm is required (it ships with Node)"; exit 1; }
   echo "== node packages (three, ffmpeg-static, playwright)"
-  cp "$ROOT/tools/package.json" "$ROOT/tools/package-lock.json" "$T/"
-  (cd "$T" && npm ci --no-fund --no-audit --loglevel=error)
+  if cmp -s "$ROOT/tools/package-lock.json" "$T/package-lock.json" && [ -d "$T/node_modules/three" ]; then
+    echo "already installed"
+  else
+    cp "$ROOT/tools/package.json" "$ROOT/tools/package-lock.json" "$T/"
+    (cd "$T" && npm ci --no-fund --no-audit --loglevel=error) || { rm -f "$T/package-lock.json"; exit 1; }
+  fi
   [ -x "$T/node_modules/ffmpeg-static/ffmpeg" ] || (cd "$T" && node node_modules/ffmpeg-static/install.js)
   (cd "$T" && npx --yes playwright install chromium) || echo "!! Chromium install failed: render with 'p2v render <job> --manual' in any browser"
   echo "== python venv"
@@ -75,10 +87,7 @@ setup() {
   "$T/.venv/bin/pip" install -q --upgrade pip
   "$T/.venv/bin/pip" install -q -r "$ROOT/requirements.txt"
   echo "== Kokoro voice model (~350 MB, once)"
-  mkdir -p "$T/models"
-  for f in kokoro-v1.0.onnx voices-v1.0.bin; do
-    [ -s "$T/models/$f" ] || curl -fL -o "$T/models/$f" "https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/$f"
-  done
+  "$T/.venv/bin/python" "$ROOT/scripts/tts.py" --download-models   # verifies size + SHA-256
   # Downloaded binaries can carry com.apple.quarantine and get killed on first run.
   if [ "$(uname)" = "Darwin" ]; then
     xattr -cr "$T/node_modules/ffmpeg-static" "$T/models" "$T/.venv" 2>/dev/null || true
@@ -97,6 +106,7 @@ doctor() {
   local ok=1
   if [ -x "$PY" ] && "$PY" -c "import kokoro_onnx, soundfile, pypdf, supertonic" 2>/dev/null; then echo "python  ok ($("$PY" -V))"; else echo "python  missing"; ok=0; fi
   if [ -s "$P2V_TOOLS/models/kokoro-v1.0.onnx" ]; then echo "voice   ok"; else echo "voice   missing"; ok=0; fi
+  command -v node >/dev/null || { echo "node    missing (install Node 18+)"; return 1; }
   local ff; ff=$(cd "$ROOT" && node -e "import('./scripts/lib.mjs').then(m=>console.log(m.resolveFfmpeg(process.env.P2V_ROOT)))" 2>/dev/null) && echo "ffmpeg  ok ($ff)" || { echo "ffmpeg  missing"; ok=0; }
   [ -d "$P2V_TOOLS/node_modules/playwright" ] && echo "render  ok (playwright)" || echo "render  manual only (no playwright)"
   [ $ok = 1 ] || { echo "-> run: $ROOT/p2v setup"; return 1; }
@@ -120,12 +130,11 @@ run_unattended() {
   [ $# -ge 1 ] || { echo "usage: p2v run <arxiv link or id> [overrides]"; exit 2; }
   need_tools
   command -v claude >/dev/null || { echo "p2v run needs the claude CLI on PATH"; exit 1; }
-  local id; id=$("$SYSPY" -c 'import re,sys; m=re.search(r"(\d{4}\.\d{4,5})", sys.argv[1]); print(m.group(1) if m else "")' "$1")
-  [ -n "$id" ] || { echo "not an arXiv link or id: $1"; exit 2; }
+  local id; id=$("$SYSPY" "$ROOT/scripts/fetch_paper.py" --id "$1") || { echo "not an arXiv link or id: $1"; exit 2; }
   mkdir -p "$P2V_HOME/logs"; local log="$P2V_HOME/logs/$id.json"
   echo "paper2video: $id  (log: $log)"
   (cd "$P2V_HOME" && claude -p "/paper2video $*" --permission-mode acceptEdits \
-    --allowedTools "Bash($ROOT/p2v *),Bash(ls *),Bash(cat *),Bash(head *),Bash(wc *),Bash(grep *),Read,Write,Edit,Glob,Grep,Task,Agent" \
+    --allowedTools "Bash($ROOT/p2v *),Bash($(cd "$ROOT" && pwd -P)/p2v *),Bash($HOME/.claude/skills/paper2video/p2v *),Bash(ls *),Bash(cat *),Bash(head *),Bash(wc *),Bash(grep *),Read,Write,Edit,Glob,Grep,Task,Agent" \
     --add-dir "$ROOT" --output-format json > "$log")
   "$SYSPY" -c "import json,sys; d=json.load(open(sys.argv[1])); print(d.get('result','')); sys.exit(1 if d.get('is_error') else 0)" "$log"
 }
@@ -136,8 +145,8 @@ case "$CMD" in
   doctor)  doctor ;;
   paths)   "$SYSPY" "$ROOT/scripts/p2v_paths.py" --shell ;;
   fetch)   need_tools; [ -n "${1:-}" ] || { echo "usage: p2v fetch <arxiv link or id>"; exit 2; }; exec "$PY" "$ROOT/scripts/fetch_paper.py" "$@" ;;
-  check)   need_tools; need_job "${1:-}"; seed_job "$1"; exec "$PY" "$ROOT/scripts/check_claims.py" "$@" ;;
-  tts)     need_tools; need_job "${1:-}"; seed_job "$1"; exec "$PY" "$ROOT/scripts/tts.py" "$@" ;;
+  check)   need_tools; need_job "${1:-}"; exec "$PY" "$ROOT/scripts/check_claims.py" "$@" ;;
+  tts)     need_tools; need_job "${1:-}"; exec "$PY" "$ROOT/scripts/tts.py" "$@" ;;
   preview) need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$1" --preview ;;
   render)  need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$@" ;;
   collect) exec node "$ROOT/scripts/collect.mjs" ;;

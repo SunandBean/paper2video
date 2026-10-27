@@ -4,8 +4,15 @@ The writer and the verifier must be different contexts. The agent that wrote the
 grade it. Spawn a fresh subagent (ideally a different model) that sees only: `paper/paper.txt`,
 `paper/meta.json`, `script.json`, `claims.json`, the scene files, `build/VERIFY_auto.md`, and this file.
 
-## Layer 1. Numbers and sentences (mechanical, `scripts/check_claims.py`)
+## Layer 1. Numbers and sentences (mechanical, `p2v check <id>` = `scripts/check_claims.py`)
 Required: **FAIL 0, WARN 0**.
+
+Numbers it looks at: subtitles, narration text, string literals in the job's `.js` files, and `build/onscreen.json`,
+the list of every string the player actually drew (written by `p2v preview` and `p2v render`). The last source is
+what catches numbers that templates draw from JS values (bar values, axis ticks, `${v.toFixed(1)}s`).
+A number counts as covered only through a claim that itself passed, or through `allow_numbers` with a reason
+(axis gridlines, animated parameter values, ids). Illustrative numbers that are not from the paper must not
+appear on screen unless they are labeled as illustrative there.
 
 claims.json kinds:
 | kind | required fields | passes when |

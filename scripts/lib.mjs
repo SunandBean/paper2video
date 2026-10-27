@@ -42,8 +42,13 @@ export function run(bin, args) {
 }
 
 
-export function mux(root, job, ffmpeg = resolveFfmpeg(root)) {
+export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const b = path.join(jobsDir(root), job, 'build');
+  // ffmpeg's image sequence stops silently at the first gap, so check that every frame arrived.
+  const have = new Set(fs.readdirSync(path.join(b, 'frames')).filter(f => /^\d{5}\.jpg$/.test(f)));
+  const want = expected || have.size;
+  const missing = []; for (let k = 0; k < want && missing.length < 5; k++) if (!have.has(String(k).padStart(5, '0') + '.jpg')) missing.push(k);
+  if (missing.length || have.size < want) throw new Error(`frames incomplete: have ${have.size}/${want}, first missing ${missing.join(', ')}`);
   const frames = path.join(b, 'frames', '%05d.jpg');
   const audio = path.join(b, 'narration.wav');
   const output = path.join(b, `${job}.mp4`);
@@ -54,8 +59,7 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root)) {
   args.push('-movflags', '+faststart', output);
   run(ffmpeg, args);
   // Contact sheet: 16 frames evenly spaced over the whole video (works for 15 s or 5 min).
-  const n = fs.readdirSync(path.join(b, 'frames')).filter(f => f.endsWith('.jpg')).length;
-  const step = Math.max(1, Math.floor(n / 16));
+  const step = Math.max(1, Math.floor(want / 16));
   const contact = path.join(b, 'contact.jpg');
   run(ffmpeg, ['-y', '-loglevel', 'error', '-i', output, '-vf', `select='not(mod(n+${Math.floor(step / 2)}\\,${step}))',scale=480:-1,tile=4x4`, '-fps_mode', 'vfr', '-frames:v', '1', contact]);
   const shortcut = publish(root, job, output);

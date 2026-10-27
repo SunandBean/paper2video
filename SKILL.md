@@ -15,9 +15,12 @@ Paper in, explainer video out. The user picks the paper; everything after that i
 
 Paper to process: **$ARGUMENTS**
 
-Every step runs through one command, `P2V="${CLAUDE_SKILL_DIR}/p2v"` (works from any directory).
-1. Run `"$P2V" doctor`. It prints the folders (skill, tools, jobs, videos). If it ends with `-> run: ... setup`,
-   tell the user "first run: installing tools (~1 GB, a few minutes)" and run `"$P2V" setup` once.
+Every step runs through one command: `${CLAUDE_SKILL_DIR}/p2v <subcommand>` (works from any directory).
+Always type that full path exactly as written here, not a shell variable or `cd` + `./p2v`: the pre-approved
+permission matches this exact command, so other spellings stop for a permission prompt.
+1. Run `${CLAUDE_SKILL_DIR}/p2v doctor`. It prints the folders (skill, tools, jobs, videos). If it ends with `-> run: ... setup`,
+   tell the user "first run: installing tools (~1 GB, a few minutes)" and run `${CLAUDE_SKILL_DIR}/p2v setup` once,
+   with the Bash tool's maximum timeout (600000 ms). If it is cut off, run it again: finished parts are skipped.
 2. Write job files in the **jobs** folder that doctor printed (`<jobs>/<id>/`), never in the skill folder.
    Installed copies keep jobs and videos in `~/paper2video/`; a development clone keeps them in the repo.
 
@@ -52,24 +55,24 @@ When the overrides ask for Korean:
 ## Final report (always, at the end)
 Per step: done / failed + output path · VERIFY.md verdict and open items · video path in the videos folder + length ·
 new templates added · wall-clock time · anything the user should look at first.
-Setup (`"$P2V" setup`) installs Node packages, ffmpeg, Playwright Chromium, a Python 3.10-3.13 venv and the Kokoro voice model
+Setup (`${CLAUDE_SKILL_DIR}/p2v setup`) installs Node packages, ffmpeg, Playwright Chromium, a Python 3.10-3.13 venv and the Kokoro voice model
 into the tools folder, which survives updates. If the default `python3` is 3.14+, it picks 3.13/3.12, or set `PYTHON=/path/to/python3.12`.
 
 ## Pipeline
 
 | # | Step | Command / output |
 |---|---|---|
-| 1 | Fetch paper + license | `"$P2V" fetch <arxiv id or link>` → `<jobs>/<id>/paper/{meta.json,paper.pdf,paper.txt}` and job skeleton |
+| 1 | Fetch paper + license | `${CLAUDE_SKILL_DIR}/p2v fetch <arxiv id or link>` → `<jobs>/<id>/paper/{meta.json,paper.pdf,paper.txt}` and job skeleton |
 | 2 | Read + outline | Read `paper.txt` fully. Fill `<jobs>/<id>/BRIEF.md` (license block first, outline that follows the paper's own logic, shot list) |
 | 3 | Script | `<jobs>/<id>/script.json`: scenes → sentences `[subtitle, tts_text]` |
 | 4 | Claims | `<jobs>/<id>/claims.json`: every factual statement and every on-screen number, with source |
-| 5 | Mechanical check | `"$P2V" check <id>` → must be **FAIL 0, WARN 0** |
+| 5 | Mechanical check | `${CLAUDE_SKILL_DIR}/p2v check <id>` → must be **FAIL 0, WARN 0** |
 | 6 | Independent verification | Fresh-context verifier subagent per `references/verification.md` → `<jobs>/<id>/VERIFY.md`. Fix and loop until it passes |
 | 7 | Scenes | `<jobs>/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |
-| 8 | Narration + timing | `"$P2V" tts <id>` → `build/narration.wav`, `build/timing.json` |
-| 9 | Preview QA | `"$P2V" preview <id>` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
-| 10 | Render | `"$P2V" render <id>` → `<videos>/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `render <id> --manual`, open the URL in any browser) |
-| 11 | Final checks | Re-run step 5 (scenes may have added numbers). Watch `contact.jpg` |
+| 8 | Narration + timing | `${CLAUDE_SKILL_DIR}/p2v tts <id>` → `build/narration.wav`, `build/timing.json` |
+| 9 | Preview QA | `${CLAUDE_SKILL_DIR}/p2v preview <id>` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
+| 10 | Render | `${CLAUDE_SKILL_DIR}/p2v render <id>` → `<videos>/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `render <id> --manual`, open the URL in any browser) |
+| 11 | Final checks | Re-run step 5: it now also checks every string the render drew (`build/onscreen.json`), including numbers that templates draw from JS values. Must be FAIL 0, WARN 0. Watch `contact.jpg` |
 | 12 | Report | Final report (below). If `local/*.md` exists in the skill folder, follow those personal add-on steps after this one |
 
 Re-runs: steps 8 to 11 are idempotent. Change `script.json` → re-run 5, 8, 9, 10.
@@ -95,6 +98,6 @@ Re-runs: steps 8 to 11 are idempotent. Change `script.json` → re-run 5, 8, 9, 
 
 ## Smoke test (after setup)
 ```bash
-"$P2V" smoke        # English; stops at the first failing step; render refuses stale narration
-"$P2V" smoke --ko   # also tests Korean narration (downloads the Supertonic model on first run)
+${CLAUDE_SKILL_DIR}/p2v smoke        # English; stops at the first failing step; render refuses stale narration
+${CLAUDE_SKILL_DIR}/p2v smoke --ko   # also tests Korean narration (downloads the Supertonic model on first run)
 ```

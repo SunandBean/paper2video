@@ -8,8 +8,9 @@ Checks jobs/<job>/claims.json against paper/paper.txt and the script/scenes:
   * kind=table   a table line contains the row label and every listed value; the table caption exists
   * kind=derived needs `from` (existing claim ids), `derivation`, and `on_screen_label`
   * kind=opinion needs `on_screen_label` (how the video marks it as interpretation)
-  * coverage     every number shown in subtitles or on-screen strings is covered by some claim
-                 (values / quote / text) or by `allow_numbers` with a reason
+  * coverage     every number in subtitles, narration text, string literals in the job's .js files, and
+                 build/onscreen.json (every string the player actually drew; written by `p2v preview`
+                 and `p2v render`) is covered by some claim (values / quote / text) or by `allow_numbers`
 Writes build/VERIFY_auto.md. Exit code 1 if anything FAILs. WARNs go to the verifier for judgment.
 """
 import json, os, re, sys, unicodedata
@@ -52,22 +53,33 @@ def main():
     lines = [norm(l) for l in paper_raw.splitlines()]
     C = json.load(open(os.path.join(J, 'claims.json'), encoding='utf-8'))
     script = json.load(open(os.path.join(J, 'script.json'), encoding='utf-8'))
-    claims = C.get('claims', []); ids = {c['id'] for c in claims}
+    claims = C.get('claims', [])
     sent_keys = {f"{s['id']}.{k}" for s in script['scenes'] for k in range(len(s['s']))}
     rows = []  # (status, id, detail)
+    seen_ids = set()
+    for i, c in enumerate(claims):
+        if not c.get('id'): rows.append(('FAIL', f'#{i}', 'claim has no id')); c['id'] = f'#{i}'
+        elif c['id'] in seen_ids: rows.append(('FAIL', c['id'], 'duplicate claim id'))
+        seen_ids.add(c['id'])
+    ids = {c['id'] for c in claims}
     for c in claims:
         k, cid = c.get('kind'), c.get('id')
         bad_refs = [u for u in c.get('used_in', []) if u not in sent_keys]
         if bad_refs: rows.append(('WARN', cid, f'used_in refers to unknown sentence(s) {bad_refs}'))
         if k == 'quote':
-            ok = norm(c.get('quote', '')) in paper
+            q = norm(c.get('quote', ''))
+            if len(q) < 8: rows.append(('FAIL', cid, 'quote missing or too short to verify')); continue
+            ok = q in paper
             rows.append(('PASS' if ok else 'FAIL', cid, 'quote found' if ok else f'quote NOT found: "{c.get("quote", "")[:90]}"'))
         elif k == 'table':
             cap = norm(c.get('table', ''))
             if not any(cap + sep in paper for sep in (':', '. ')):  # "Table 2:" (most styles) or "Table 2." (CVPR)
                 rows.append(('FAIL', cid, f'caption "{c.get("table")}" not found')); continue
-            row, vals = norm(c.get('row', '')), [norm(v) for v in c.get('values', [])]
-            hit = [l for l in lines if row in l and all(re.search(r'(?<![\d.])' + re.escape(v) + r'(?![\d])', l) for v in vals)]
+            row, vals = norm(c.get('row', '')), [norm(str(v)) for v in c.get('values', [])]
+            if not row or not vals or not cap:
+                rows.append(('FAIL', cid, 'table claim needs table, row and values')); continue
+            # a value must stand alone: "60" must not match inside "60.9" or "160"
+            hit = [l for l in lines if row in l and all(re.search(r'(?<![\d.])' + re.escape(v) + r'(?![\d]|\.\d)', l) for v in vals)]
             rows.append(('PASS' if hit else 'FAIL', cid, f'{c.get("table")} row "{c.get("row")}" = {c.get("values")}' + ('' if hit else '  NOT matched on one line')))
         elif k == 'derived':
             miss = [f for f in ('from', 'derivation', 'on_screen_label') if not c.get(f)]
@@ -80,12 +92,25 @@ def main():
             rows.append(('FAIL', cid, f'unknown kind {k}'))
     # coverage
     covered = set(C.get('allow_numbers', {}).keys())
+    failed = {r[1] for r in rows if r[0] == 'FAIL'}   # a failed claim cannot vouch for a number
     for c in claims:
-        for f in ('values',): covered.update(norm(v) for v in c.get(f, []))
+        if c['id'] in failed: continue
+        for v in c.get('values', []): covered.update(nums(str(v)))
         for f in ('quote', 'text', 'row', 'derivation', 'table'): covered.update(nums(c.get(f, '')))
     shown = []
     for s in script['scenes']:
-        for kk, (sub, _) in enumerate(s['s']): shown += [(n, f'{s["id"]}.{kk} subtitle') for n in nums(sub)]
+        for kk, (sub, tts) in enumerate(s['s']):
+            shown += [(n, f'{s["id"]}.{kk} subtitle') for n in nums(sub)]
+            shown += [(n, f'{s["id"]}.{kk} narration') for n in nums(tts)]
+    onscreen = os.path.join(J, 'build', 'onscreen.json')
+    if os.path.exists(onscreen):
+        newest = max(os.path.getmtime(os.path.join(J, f)) for f in os.listdir(J) if f.endswith('.js') or f == 'script.json')
+        if os.path.getmtime(onscreen) < newest:
+            rows.append(('WARN', 'onscreen', 'build/onscreen.json is older than script.json/scenes: run `p2v preview` (or render) again'))
+        for it in json.load(open(onscreen, encoding='utf-8')).get('items', []):
+            shown += [(n, f'on screen ({it.get("scene")}): "{it.get("text", "")[:50]}"') for n in nums(it.get('text', ''))]
+    elif any(f.endswith('.js') for f in os.listdir(J)):
+        rows.append(('INFO', 'onscreen', 'no build/onscreen.json yet: numbers drawn from JS values are checked after `p2v preview`'))
     for f in sorted(os.listdir(J)):
         if f.endswith('.js'):
             for lit in string_literals(open(os.path.join(J, f), encoding='utf-8').read()):
@@ -97,12 +122,12 @@ def main():
         rows.append(('WARN', f'num {n}', f'not covered by any claim; shown at {w[:3]}' + (' …' if len(w) > 3 else '')))
     n_fail = sum(r[0] == 'FAIL' for r in rows); n_warn = sum(r[0] == 'WARN' for r in rows)
     os.makedirs(os.path.join(J, 'build'), exist_ok=True)
-    with open(os.path.join(J, 'build', 'VERIFY_auto.md'), 'w') as f:
+    with open(os.path.join(J, 'build', 'VERIFY_auto.md'), 'w', encoding='utf-8') as f:
         f.write(f'# Mechanical cross-check: {job}\n\nFAIL {n_fail} · WARN {n_warn} · claims {len(claims)}\n\n| status | id | detail |\n|---|---|---|\n')
         for r in rows: f.write(f'| {r[0]} | {r[1]} | {r[2].replace("|", "/")} |\n')
     for r in rows:
         if r[0] != 'PASS': print(f'{r[0]:6} {r[1]:10} {r[2]}')
-    print(f'\nFAIL {n_fail}  WARN {n_warn}  PASS {sum(r[0] == "PASS" for r in rows)}  -> jobs/{job}/build/VERIFY_auto.md')
+    print(f'\nFAIL {n_fail}  WARN {n_warn}  PASS {sum(r[0] == "PASS" for r in rows)}  -> {os.path.join(J, "build", "VERIFY_auto.md")}')
     sys.exit(1 if n_fail else 0)
 
 if __name__ == '__main__':

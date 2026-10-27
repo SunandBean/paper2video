@@ -2,9 +2,10 @@
 """Narration + timing for a job.
 
     ./p2v tts <job> [--engine kokoro|supertonic|silent] [--voice af_heart] [--speed 1.0]
+    python scripts/tts.py --download-models     (used by ./p2v setup)
 
-Reads jobs/<job>/script.json and writes
-    jobs/<job>/build/audio/*.wav, build/narration.wav, build/timing.json
+Reads <jobs>/<job>/script.json and writes
+    <jobs>/<job>/build/narration.wav, build/timing.json
 
 timing.json drives the video: one entry per scene with sentence start/dur, so scene
 animations can key off sentence boundaries (S.P(k) in scenes.js).
@@ -16,7 +17,7 @@ Engines (picked from script.json "lang" unless tts.engine is set)
               OpenRAIL-M weights. Voices: F1-F5, M1-M5. Model auto-downloads on first use (Hugging Face cache).
   silent      no audio; durations estimated from word count. For layout previews only.
 """
-import argparse, json, os, sys, wave, urllib.request
+import argparse, hashlib, json, os, sys, wave, urllib.request
 try:
     import numpy as np
 except ModuleNotFoundError:
@@ -25,25 +26,43 @@ except ModuleNotFoundError:
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from p2v_paths import ROOT, JOBS, MODELS  # noqa: E402
 SR = 24000  # set per engine in main()
-KOKORO_FILES = {
-    'kokoro-v1.0.onnx': 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/kokoro-v1.0.onnx',
-    'voices-v1.0.bin': 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/voices-v1.0.bin',
+REL = 'https://github.com/thewh1teagle/kokoro-onnx/releases/download/model-files-v1.0/'
+KOKORO_FILES = {  # name: (size, sha256) of the model-files-v1.0 release assets
+    'kokoro-v1.0.onnx': (325532387, '7d5df8ecf7d4b1878015a32686053fd0eebe2bc377234608764cc0ef3636a6c5'),
+    'voices-v1.0.bin': (28214398, 'bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d'),
 }
 
+def sha256(p):
+    h = hashlib.sha256()
+    with open(p, 'rb') as f:
+        for b in iter(lambda: f.read(1 << 20), b''): h.update(b)
+    return h.hexdigest()
+
 def ensure_models():
+    """Download the Kokoro files once and verify size + SHA-256 (a corrupt or tampered file is replaced or rejected)."""
     os.makedirs(MODELS, exist_ok=True)
-    for name, url in KOKORO_FILES.items():
+    for name, (size, digest) in KOKORO_FILES.items():
         p = os.path.join(MODELS, name)
-        if not os.path.exists(p) or os.path.getsize(p) < 1_000_000:
-            print(f'downloading {name} ...', flush=True)
-            urllib.request.urlretrieve(url, p + '.part'); os.replace(p + '.part', p)
+        if os.path.exists(p) and os.path.getsize(p) == size:
+            continue
+        print(f'downloading {name} ({size / 1e6:.0f} MB) ...', flush=True)
+        urllib.request.urlretrieve(REL + name, p + '.part')
+        if os.path.getsize(p + '.part') != size or sha256(p + '.part') != digest:
+            os.remove(p + '.part'); sys.exit(f'{name}: download does not match the expected size/SHA-256; not installed')
+        os.replace(p + '.part', p)
 
 def load_kokoro():
     # phonemizer copies libespeak-ng into a temp dir before dlopen; on hardened/sandboxed macOS
     # the copy can fail library validation. Symlink to the original instead.
-    import shutil
-    import phonemizer.backend.espeak.api as _api
-    _api.shutil.copy = lambda src, dst, follow_symlinks=False: os.symlink(os.path.abspath(src), dst)
+    try:
+        import phonemizer.backend.espeak.api as _api
+        _orig_copy = _api.shutil.copy
+        def _copy(src, dst, follow_symlinks=True):
+            try: os.symlink(os.path.abspath(src), dst); return dst
+            except OSError: return _orig_copy(src, dst, follow_symlinks=follow_symlinks)
+        _api.shutil.copy = _copy
+    except (ImportError, AttributeError):
+        pass  # phonemizer internals changed: keep its default behaviour
     from kokoro_onnx import Kokoro
     ensure_models()
     return Kokoro(os.path.join(MODELS, 'kokoro-v1.0.onnx'), os.path.join(MODELS, 'voices-v1.0.bin'))
@@ -57,12 +76,14 @@ def trim(x, thr=10 ** (-45 / 20)):
     return x[idx[0]: idx[-1] + 1] if len(idx) else x
 
 def main():
+    if sys.argv[1:] == ['--download-models']:
+        ensure_models(); print('kokoro models ok'); return
     ap = argparse.ArgumentParser()
     ap.add_argument('job')
     ap.add_argument('--engine'); ap.add_argument('--voice'); ap.add_argument('--speed', type=float)
     a = ap.parse_args()
     J = os.path.join(JOBS, a.job)
-    script = json.load(open(os.path.join(J, 'script.json')))
+    with open(os.path.join(J, 'script.json'), encoding='utf-8') as f: script = json.load(f)
     cfg = script.get('tts', {})
     global SR
     slang = (script.get('lang') or 'en').lower()
@@ -72,7 +93,7 @@ def main():
     voice = a.voice or cfg.get('voice') or ('af_heart' if engine == 'kokoro' else 'F1')
     speed = a.speed or cfg.get('speed') or (1.0 if engine == 'kokoro' else 1.05)
     lang = ('en-gb' if voice.startswith('b') else 'en-us') if engine == 'kokoro' else slang
-    B = os.path.join(J, 'build'); A = os.path.join(B, 'audio'); os.makedirs(A, exist_ok=True)
+    B = os.path.join(J, 'build'); os.makedirs(B, exist_ok=True)
     for f in ('timing.json', 'narration.wav'):
         if os.path.exists(os.path.join(B, f)): os.remove(os.path.join(B, f))
     k = load_kokoro() if engine == 'kokoro' else load_supertonic() if engine == 'supertonic' else None
@@ -112,7 +133,7 @@ def main():
     with wave.open(os.path.join(B, 'narration.wav'), 'wb') as wf:
         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
         wf.writeframes((audio * 32767).astype('<i2').tobytes())
-    json.dump(timeline, open(os.path.join(B, 'timing.json'), 'w'), ensure_ascii=False, indent=1)
+    with open(os.path.join(B, 'timing.json'), 'w', encoding='utf-8') as f: json.dump(timeline, f, ensure_ascii=False, indent=1)
     print(f'total {T:.1f}s  engine={engine} voice={voice} lang={slang}  -> {B}/timing.json')
 
 if __name__ == '__main__':

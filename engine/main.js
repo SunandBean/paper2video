@@ -15,6 +15,18 @@ const factories = { ...(mod.default || {}), ...mod };
 const LABELS = Object.fromEntries((SCRIPT.scenes || []).map(s => [s.id, s.label || '']));
 const STYLE = SCRIPT.style || {};
 
+// Record every string actually drawn (scripts/check_claims.py checks the numbers in it against claims.json).
+// Template values passed as JS numbers (bar values, axis ticks) only become text here, so this is the reliable source.
+const SEEN = new Map(); let REC = true, CUR = '';
+for (const fn of ['fillText', 'strokeText']) {
+  const orig = CanvasRenderingContext2D.prototype[fn];
+  CanvasRenderingContext2D.prototype[fn] = function (s, ...a) {
+    if (REC && this.globalAlpha > 0.02) { const k = String(s).trim(); if (k && !SEEN.has(k)) SEEN.set(k, CUR); }
+    return orig.call(this, s, ...a);
+  };
+}
+window.onscreenText = () => [...SEEN].map(([text, scene]) => ({ text, scene }));
+
 const out = document.getElementById('out'); out.width = W; out.height = H;
 const ctx = out.getContext('2d');
 const built = {};
@@ -53,7 +65,7 @@ function subtitle(sc, t) {
 }
 export function renderAt(T) {
   let i = TIMING.findIndex(s => T >= s.start && T < s.start + s.dur); if (i < 0) i = TIMING.length - 1;
-  const sc = TIMING[i], t = T - sc.start, obj = built[sc.id];
+  const sc = TIMING[i], t = T - sc.start, obj = built[sc.id]; CUR = sc.id;
   const S = {
     t, dur: sc.dur, sents: sc.sents,
     // progress (0..1) through sentence k's window (sentence start -> next sentence start or scene end)
@@ -76,7 +88,9 @@ window.capture = async function (f0, f1, q = 0.9) {
   for (let f = f0; f < f1; f++) {
     renderAt(f / FPS);
     const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', q));
-    await fetch(`/frame/${JOB}/${f}`, { method: 'POST', body: blob });
+    if (!blob) throw new Error(`frame ${f}: canvas.toBlob returned nothing`);
+    const res = await fetch(`/frame/${encodeURIComponent(JOB)}/${f}`, { method: 'POST', body: blob });
+    if (!res.ok) throw new Error(`frame ${f}: server answered ${res.status}`);
     window.__done = f;
   }
   return f1;
@@ -85,9 +99,15 @@ window.capture = async function (f0, f1, q = 0.9) {
 window.sheet = (Ts, cols = 2, w = 960) => {
   const h = Math.round(w * 9 / 16), c = document.createElement('canvas');
   c.width = w * cols; c.height = h * Math.ceil(Ts.length / cols); const g = c.getContext('2d');
-  Ts.forEach((T, i) => { renderAt(T); g.drawImage(out, (i % cols) * w, Math.floor(i / cols) * h, w, h); g.fillStyle = '#ff0'; g.font = '22px sans-serif'; g.fillText(T.toFixed(1) + 's', (i % cols) * w + 10, Math.floor(i / cols) * h + h - 12); });
+  Ts.forEach((T, i) => {
+    renderAt(T); g.drawImage(out, (i % cols) * w, Math.floor(i / cols) * h, w, h);
+    REC = false; g.fillStyle = '#ff0'; g.font = '22px sans-serif'; g.fillText(T.toFixed(1) + 's', (i % cols) * w + 10, Math.floor(i / cols) * h + h - 12); REC = true;
+  });
   return c.toDataURL('image/jpeg', .82);
 };
+// Render every `step`-th frame without encoding and return the on-screen strings (fast text audit).
+window.scanText = (step = 3) => { for (let f = 0; f < window.NFRAMES; f += step) renderAt(f / FPS); return window.onscreenText(); };
+const postText = (mode, items) => fetch(`/text/${encodeURIComponent(JOB)}`, { method: 'POST', body: JSON.stringify({ mode, items }) });
 window.READY = true;
 
 // Self-driving capture mode: any browser (Playwright, Aside tab, Chrome) can render the job.
@@ -97,10 +117,14 @@ if (params.get('capture') === '1') {
   (async () => {
     try {
       for (let f = start; f < window.NFRAMES; f += 150) await window.capture(f, Math.min(window.NFRAMES, f + 150), q);
-      await fetch(`/done/${JOB}?frames=${window.NFRAMES}`, { method: 'POST' });
+      if (start === 0) await postText('render', window.onscreenText());
+      const res = await fetch(`/done/${encodeURIComponent(JOB)}?frames=${window.NFRAMES}`, { method: 'POST' });
+      if (!res.ok) throw new Error(`done: server answered ${res.status}`);
       window.CAPTURE_DONE = true;
-    } catch (e) { window.ERR = (window.ERR || '') + 'capture: ' + e.message; }
+    } catch (e) { window.reportFailure('capture: ' + e.message); }
   })();
+} else if (params.get('scan') === '1') {
+  postText('scan', window.scanText(parseInt(params.get('step') || '3', 10))).then(() => { window.SCAN_DONE = true; document.title = 'scan done'; });
 } else {
   renderAt(parseFloat(params.get('t') || '1.5'));
 }

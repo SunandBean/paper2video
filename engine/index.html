@@ -3,7 +3,13 @@
 <style>html,body{margin:0;background:#000;height:100%;display:flex;align-items:center;justify-content:center}canvas#out{width:100vw;max-height:100vh;aspect-ratio:16/9;object-fit:contain}</style>
 </head><body><canvas id="out"></canvas>
 <script type="module">
-window.addEventListener('error', e => { window.ERR = (window.ERR || '') + e.message + ' @' + e.filename + ':' + e.lineno + '\n'; });
-window.addEventListener('unhandledrejection', e => { window.ERR = (window.ERR || '') + 'rej: ' + (e.reason && (e.reason.stack || e.reason.message || e.reason)) + '\n'; });
-import('/engine/main.js').catch(e => { window.ERR = (window.ERR || '') + 'import: ' + e.stack; });
+// Errors go to window.ERR (read by render.mjs) and, in capture mode, to the server so a waiting render stops instead of hanging.
+const P = new URLSearchParams(location.search);
+window.reportFailure = msg => {
+  window.ERR = (window.ERR || '') + msg + '\n';
+  if (P.get('capture') === '1' && P.get('job')) fetch(`/fail/${encodeURIComponent(P.get('job'))}`, { method: 'POST', body: String(msg) }).catch(() => {});
+};
+window.addEventListener('error', e => window.reportFailure(e.message + ' @' + e.filename + ':' + e.lineno));
+window.addEventListener('unhandledrejection', e => window.reportFailure('rej: ' + (e.reason && (e.reason.stack || e.reason.message || e.reason))));
+import('/engine/main.js').catch(e => window.reportFailure('import: ' + (e.stack || e)));
 </script></body></html>
