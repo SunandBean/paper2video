@@ -257,3 +257,64 @@ export function stack(...parts) {
 // Mini camera-image tile grid (cameras x timestamps), reused from the Foundation4D example.
 export { drawMini } from '/engine/core.js';
 export { CAMS, hex };
+
+// Comparison matrix (e.g. a paper's "approach vs. property" table). cols: header strings;
+// rows: [{ name, cells: ['✓' | '✗' | text], highlight }]. ✓/✗ draw as colored glyphs, other text as gray chips.
+// Rows reveal one by one across sentence `sentence`; footnotes fade in at the end.
+export function checkTable({ heading = '', cols, rows, sentence = 0, box = [100, 150, 1720, 640], footnotes = [], nameW = 520 }) {
+  const [x, y, w, h] = box;
+  return {
+    draw(ctx, S) {
+      const p = S.P(sentence), a = eo(seg(p, 0, .12));
+      if (a <= 0) return;
+      panel(ctx, x, y, w, h, a);
+      if (heading) txt(ctx, heading, x + 36, y + 54, { size: 28, weight: 800, alpha: a, maxW: w - 72 });
+      const hy = y + (heading ? 110 : 60), cw = (w - nameW - 60) / cols.length, rh = (h - (hy - y) - 40 - footnotes.length * 30) / (rows.length + .4);
+      cols.forEach((c, j) => txt(ctx, c, x + nameW + 30 + cw * (j + .5), hy, { size: 22, weight: 700, color: C.gray, align: 'center', alpha: a, maxW: cw - 12 }));
+      rows.forEach((r, i) => {
+        const ar = eo(seg(p, .1 + i * .55 / rows.length, .22 + i * .55 / rows.length)), ry = hy + 24 + i * rh;
+        if (ar <= 0) return;
+        if (r.highlight) rrect(ctx, x + 16, ry, w - 32, rh - 8, 12, 'rgba(118,185,0,.12)', C.green, 2, ar);
+        txt(ctx, r.name, x + 40, ry + rh / 2 + 6, { size: 26, weight: r.highlight ? 800 : 600, color: r.highlight ? C.green : C.white, alpha: ar, maxW: nameW - 40 });
+        r.cells.forEach((v, j) => {
+          const cx = x + nameW + 30 + cw * (j + .5), cy = ry + rh / 2 + 8;
+          if (v === '✓' || v === '✗') txt(ctx, v, cx, cy + 4, { size: 36, weight: 800, align: 'center', color: v === '✓' ? C.green : C.red, alpha: ar });
+          else txt(ctx, v, cx, cy, { size: 21, weight: 700, align: 'center', color: C.yellow, alpha: ar, maxW: cw - 12 });
+        });
+      });
+      footnotes.forEach((f, i) => txt(ctx, f, x + 40, y + h - 24 - (footnotes.length - 1 - i) * 30, { size: 19, color: C.gray, alpha: eo(seg(p, .7, .9)), maxW: w - 80 }));
+    }
+  };
+}
+
+// Horizontal outcome bar (e.g. "39 successes / 7 detection / 3 no grasp / 1 collision" out of N trials).
+// parts: [{ label, n, color, sentence }]; each part grows during its own sentence (default: `sentence`).
+export function splitBar({ heading = '', parts, total, sentence = 0, box = [160, 620, 1600, 70], unit = 'trials' }) {
+  const [x, y, w, h] = box, N = total ?? parts.reduce((s, q) => s + q.n, 0);
+  return {
+    draw(ctx, S) {
+      const a = eo(seg(S.P(parts[0].sentence ?? sentence), 0, .15));
+      if (a <= 0) return;
+      if (heading) txt(ctx, heading, x, y - 26, { size: 26, weight: 800, alpha: a });
+      txt(ctx, `${N} ${unit}`, x + w, y - 26, { size: 22, color: C.gray, align: 'right', alpha: a });
+      rrect(ctx, x, y, w, h, 10, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.18)', 2, a);
+      // labels sit under their segment, pushed right (and down a row) so neighbours never overlap
+      let cx = x, end = -1e9, row = 0;
+      ctx.save(); ctx.font = `700 22px ${FONT}`;
+      const tw = parts.map(q => ctx.measureText(`${q.n} ${q.label}`).width); ctx.restore();
+      parts.forEach((q, i) => {
+        const g = eo(seg(S.P(q.sentence ?? sentence), .05 + i * .08, .35 + i * .08)), pw = w * q.n / N, la = a * clamp(g * 2 - 1);
+        let lx = Math.max(cx + pw / 2 - tw[i] / 2, x);
+        if (lx < end + 24) { if (row === 0 && i > 0) { row = 1; } else { lx = end + 24; } }
+        if (g > 0) {
+          rrect(ctx, cx + 2, y + 2, Math.max(0, pw * g - 4), h - 4, 8, q.color, null, 0, a);
+          if (pw > 50) txt(ctx, String(q.n), cx + pw / 2, y + h / 2 + 11, { size: 30, weight: 800, align: 'center', color: '#0b0f14', alpha: la });
+          rrect(ctx, cx + pw / 2 - 1, y + h + 4, 2, 14 + row * 34, 1, q.color, null, 0, la * .7);
+          txt(ctx, `${q.n} ${q.label}`, lx, y + h + 42 + row * 34, { size: 22, weight: 700, color: q.color, alpha: la });
+        }
+        if (row === 0) end = lx + tw[i];
+        cx += pw;
+      });
+    }
+  };
+}

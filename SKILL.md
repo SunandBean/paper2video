@@ -26,7 +26,7 @@ Run the whole pipeline below with these defaults:
 | Default | Value | User can override with |
 |---|---|---|
 | Length | 4-5 min, 10-14 scenes | "3 min" |
-| Language / voice | English, Kokoro `af_heart` | another Kokoro voice id |
+| Language / voice | **English**, Kokoro `af_heart` | `ko` / `Korean` / `한국어` → Korean (Supertonic 3 voice `F1`); another voice id (Kokoro `am_michael`..., Supertonic `F1`-`F5`, `M1`-`M5`) |
 | Verification | step 6 always runs in a **fresh-context subagent**, all 5 layers; equations and derivations (not machine-checkable) are checked by the verifier against paper.txt with the evidence written in VERIFY.md | n/a (never skipped) |
 | Fix loop | fix and re-verify up to 3 rounds, then stop with BLOCKED and the open items | n/a |
 | Templates | move any new scene that would work for other papers into `engine/templates.js` | n/a |
@@ -35,6 +35,16 @@ Run the whole pipeline below with these defaults:
 
 Only stop to ask the user when blocked (license forbids the planned visuals, the PDF has no text layer,
 verification BLOCKED after 3 rounds, or a toolchain step fails twice).
+
+## Korean (or another language)
+When the overrides ask for Korean:
+- `script.json`: `"lang": "ko"`; write subtitles and every on-screen string in natural Korean (plain 해요체 for narration).
+  Keep widely used technical terms in English the first time, with a Korean gloss ("BEV(위에서 내려다본 지도)").
+- TTS text (2nd element of each sentence): spell out units and abbreviations the way they should be read
+  ("142센티미터", "엠에이피", "에이치백"); digits and dates are read correctly by the engine.
+- `tts.py` picks Supertonic 3 automatically for non-English `lang` (first run downloads the model).
+- `claims.json` quotes stay verbatim English from the paper; claim `text` may be Korean.
+- Rendering needs a Korean font (macOS has Apple SD Gothic Neo; on Linux install Noto Sans CJK).
 
 ## Final report (always, at the end)
 Per step: done / failed + output path · VERIFY.md verdict and open items · video path + length ·
@@ -76,11 +86,12 @@ Re-runs: steps 8 to 11 are idempotent. Change `script.json` → re-run 5, 8, 9, 
 - `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg)
 - `templates/job/` skeleton copied into new jobs
 - `jobs/2610.30340/` complete worked example (Foundation4D, 14 scenes, 66 claims, 4.6 min)
-- `jobs/_smoke/` 15-second template-only job for testing the toolchain (`tts.py _smoke` uses the silent engine)
+- `jobs/_smoke/` and `jobs/_smoke_ko/` short template-only jobs for testing the toolchain (English / Korean)
 - `references/` verification, scene authoring, licensing
 - `local/` (optional, git-ignored) your own add-on steps, e.g. a publishing checklist
 
 ## Smoke test (after ./setup.sh)
 ```bash
-./scripts/smoke.sh   # stops at the first failing step; render.mjs refuses stale narration
+./scripts/smoke.sh        # English; stops at the first failing step; render.mjs refuses stale narration
+./scripts/smoke.sh --ko   # also tests Korean narration (downloads the Supertonic model on first run)
 ```

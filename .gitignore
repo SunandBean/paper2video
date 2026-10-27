@@ -4,6 +4,7 @@ models/
 jobs/*
 !jobs/2610.30340/
 !jobs/_smoke/
+!jobs/_smoke_ko/
 jobs/*/build/
 jobs/*/paper/paper.pdf
 .DS_Store
