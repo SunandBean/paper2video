@@ -1,0 +1,9 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>paper2video player</title>
+<style>html,body{margin:0;background:#000;height:100%;display:flex;align-items:center;justify-content:center}canvas#out{width:100vw;max-height:100vh;aspect-ratio:16/9;object-fit:contain}</style>
+</head><body><canvas id="out"></canvas>
+<script type="module">
+window.addEventListener('error', e => { window.ERR = (window.ERR || '') + e.message + ' @' + e.filename + ':' + e.lineno + '\n'; });
+window.addEventListener('unhandledrejection', e => { window.ERR = (window.ERR || '') + 'rej: ' + (e.reason && (e.reason.stack || e.reason.message || e.reason)) + '\n'; });
+import('/engine/main.js').catch(e => { window.ERR = (window.ERR || '') + 'import: ' + e.stack; });
+</script></body></html>

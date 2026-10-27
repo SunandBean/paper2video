@@ -1,0 +1,11 @@
+{
+ "arxiv": "",
+ "title": "Smoke test",
+ "lang": "en",
+ "tts": { "engine": "silent", "voice": "af_heart", "speed": 1.0 },
+ "scenes": [
+  { "id": "title", "label": "", "s": [["paper2video smoke test: templates, timing, capture and mux.", "Smoke test."]] },
+  { "id": "bars", "label": "Results", "s": [["Two bar rows animate across this sentence.", "Bars."], ["And a line chart animates across this one.", "Chart."]] },
+  { "id": "cards", "label": "Takeaway", "s": [["Three cards, then a flow diagram.", "Cards."], ["Driving logs become labels and simulation scenes.", "Flow."]] }
+ ]
+}

@@ -1,0 +1,752 @@
+{
+ "paper": "2610.30340",
+ "claims": [
+  {
+   "id": "c01",
+   "kind": "quote",
+   "used_in": [
+    "problem.0"
+   ],
+   "text": "four outputs: depth, 3D objects, occupancy, 3D reconstruction",
+   "quote": "a unified feed-forward model for geometry estimation, 3D detection, semantic occupancy, and Gaussian reconstruction from multi-camera driving video"
+  },
+  {
+   "id": "c02",
+   "kind": "quote",
+   "used_in": [
+    "problem.1"
+   ],
+   "text": "separate networks re-process the same video",
+   "quote": "avoiding the repeated processing of the same observations by separate networks"
+  },
+  {
+   "id": "c03",
+   "kind": "quote",
+   "used_in": [
+    "problem.2"
+   ],
+   "text": "one shared backbone, four task heads",
+   "quote": "A shared backbone extracts features from multi-camera video, and task-specific decoders predict camera poses and metric depth, 3D objects, semantic occupancy, and Gaussian attributes in a single pass over an input window."
+  },
+  {
+   "id": "c04",
+   "kind": "quote",
+   "used_in": [
+    "input.0"
+   ],
+   "text": "six cameras",
+   "quote": "The sensor rigs use six polynomial"
+  },
+  {
+   "id": "c05",
+   "kind": "quote",
+   "used_in": [
+    "input.2"
+   ],
+   "text": "each image keeps its own capture time",
+   "quote": "Each image retains its capture time"
+  },
+  {
+   "id": "c06",
+   "kind": "quote",
+   "used_in": [
+    "attention.0"
+   ],
+   "text": "global attention cost grows with the square of token count",
+   "quote": "Global attention scales quadratically with the total number of tokens"
+  },
+  {
+   "id": "c07",
+   "kind": "quote",
+   "used_in": [
+    "attention.1"
+   ],
+   "text": "alternate camera groups and time groups",
+   "quote": "self-attention across cameras at a fixed temporal index or across time for a fixed camera"
+  },
+  {
+   "id": "c08",
+   "kind": "quote",
+   "used_in": [
+    "attention.1"
+   ],
+   "text": "37 x 37 patch grid into the aggregator",
+   "quote": "which we bilinearly downsample to 37 × 37 before aggregation"
+  },
+  {
+   "id": "c09",
+   "kind": "quote",
+   "used_in": [
+    "attention.1"
+   ],
+   "text": "16 aggregation layers",
+   "quote": "After 16 aggregation layers"
+  },
+  {
+   "id": "c10",
+   "kind": "derived",
+   "used_in": [
+    "attention.0",
+    "attention.1"
+   ],
+   "text": "48 images x 1,369 patches ≈ 66K tokens; all pairs ≈ 4.3B; camera groups ≈ 540M; time groups ≈ 720M",
+   "from": [
+    "c04",
+    "c08"
+   ],
+   "derivation": "6 cameras x 8 timestamps (illustrative window) = 48 images; 37^2 = 1369 tokens each; 65,712^2 = 4.3e9; 8 x (6 x 1369)^2 = 5.4e8; 6 x (8 x 1369)^2 = 7.2e8",
+   "on_screen_label": "(37×37 patches; rough estimate for this video)"
+  },
+  {
+   "id": "c11",
+   "kind": "table",
+   "used_in": [
+    "attention.2"
+   ],
+   "text": "baseline ATE 128.48 cm (shown as 128)",
+   "table": "Table 5",
+   "row": "(a) Baseline",
+   "values": [
+    "128.48"
+   ]
+  },
+  {
+   "id": "c12",
+   "kind": "table",
+   "used_in": [
+    "attention.2"
+   ],
+   "text": "factorized attention ATE 149.88 cm (shown as 150, worse)",
+   "table": "Table 5",
+   "row": "(b) + factorized global attention",
+   "values": [
+    "149.88"
+   ]
+  },
+  {
+   "id": "c13",
+   "kind": "quote",
+   "used_in": [
+    "attention.2"
+   ],
+   "text": "runtime -8.5%",
+   "quote": "reduces observed end-to-end runtime by 8.5%"
+  },
+  {
+   "id": "c14",
+   "kind": "quote",
+   "used_in": [
+    "pose.1"
+   ],
+   "text": "pose = fixed rig x time-varying trajectory",
+   "quote": "for each camera and a time-varying reference-camera"
+  },
+  {
+   "id": "c15",
+   "kind": "quote",
+   "used_in": [
+    "pose.2"
+   ],
+   "text": "ego trajectory evaluated at each image's capture time",
+   "quote": "interpolate the ego trajectory at each image"
+  },
+  {
+   "id": "c16",
+   "kind": "derived",
+   "used_in": [
+    "pose.2"
+   ],
+   "text": "108 km/h x 10 ms = 30 cm",
+   "from": [
+    "c15"
+   ],
+   "derivation": "illustrative: 108 km/h = 30 m/s; 30 m/s x 0.01 s = 0.3 m (30 cm). Not a number from the paper.",
+   "on_screen_label": "shown as a worked example ('What if capture times differ by 10 ms?')"
+  },
+  {
+   "id": "c17",
+   "kind": "quote",
+   "used_in": [
+    "depth.0"
+   ],
+   "text": "points come from depth + camera pose",
+   "quote": "The final pointmap is constructed from predicted depth and camera poses"
+  },
+  {
+   "id": "c18",
+   "kind": "quote",
+   "used_in": [
+    "depth.1"
+   ],
+   "text": "40 m reference length",
+   "quote": "divided by a fixed reference length of 40 m"
+  },
+  {
+   "id": "c19",
+   "kind": "quote",
+   "used_in": [
+    "depth.1",
+    "depth.2"
+   ],
+   "text": "metric-scale training roughly halves ATE: ≈142 -> 71 cm (141.7 -> 70.7)",
+   "quote": "approximately halving ATE from 141.72 to 70.67 cm"
+  },
+  {
+   "id": "c20",
+   "kind": "quote",
+   "used_in": [
+    "detect.0"
+   ],
+   "text": "900 queries",
+   "quote": "The reference configuration uses 900 queries"
+  },
+  {
+   "id": "c21",
+   "kind": "quote",
+   "used_in": [
+    "detect.1"
+   ],
+   "text": "3D box + velocity",
+   "quote": "a cuboid described by its 3D center, dimensions, yaw, and planar velocity"
+  },
+  {
+   "id": "c22",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "2 timestamps: 37.0 mAP (37)",
+   "table": "Table 9",
+   "row": "2",
+   "values": [
+    "0.07",
+    "37.0",
+    "36.7"
+   ]
+  },
+  {
+   "id": "c23",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "4 timestamps: 39.5",
+   "table": "Table 9",
+   "row": "4",
+   "values": [
+    "0.20",
+    "39.5"
+   ]
+  },
+  {
+   "id": "c24",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "8 timestamps: 42.1",
+   "table": "Table 9",
+   "row": "8",
+   "values": [
+    "0.47",
+    "42.1"
+   ]
+  },
+  {
+   "id": "c25",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "16 timestamps: 44.9",
+   "table": "Table 9",
+   "row": "16",
+   "values": [
+    "1.00",
+    "44.9"
+   ]
+  },
+  {
+   "id": "c26",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "32 timestamps (≈2 s): 47.0 mAP (47)",
+   "table": "Table 9",
+   "row": "32",
+   "values": [
+    "2.07",
+    "47.0",
+    "43.6"
+   ]
+  },
+  {
+   "id": "c27",
+   "kind": "table",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "48 timestamps: 47.6",
+   "table": "Table 9",
+   "row": "48",
+   "values": [
+    "3.13",
+    "47.6"
+   ]
+  },
+  {
+   "id": "c28",
+   "kind": "quote",
+   "used_in": [
+    "detect.2"
+   ],
+   "text": "no retraining",
+   "quote": "improves mAP by 10.07 points and HOTA by 6.89 points without retraining"
+  },
+  {
+   "id": "c29",
+   "kind": "quote",
+   "used_in": [
+    "occ.0"
+   ],
+   "text": "ROI 100 m ahead, 20 m behind, ±30 m, 8 m tall at 0.2 m (20 cm)",
+   "quote": "covering a region of interest of [-20, 100] × [-30, 30] × [-3, 5] m, at a voxel resolution of 0.2 m"
+  },
+  {
+   "id": "c30",
+   "kind": "derived",
+   "used_in": [
+    "occ.0"
+   ],
+   "text": "600 x 300 x 40 ≈ 7.2 million cells",
+   "from": [
+    "c29"
+   ],
+   "derivation": "120/0.2 = 600; 60/0.2 = 300; 8/0.2 = 40; product 7,200,000 = 7.2M",
+   "on_screen_label": "computation shown on screen"
+  },
+  {
+   "id": "c31",
+   "kind": "quote",
+   "used_in": [
+    "occ.1"
+   ],
+   "text": "features stay in BEV",
+   "quote": "To limit memory usage, intermediate features remain in BEV"
+  },
+  {
+   "id": "c32",
+   "kind": "table",
+   "used_in": [
+    "occ.2"
+   ],
+   "text": "mIoU 18.5 within 50 m vs 12.0 beyond (0–50 m, 50–100 m)",
+   "table": "Table 14",
+   "row": "+ longer training and larger batch",
+   "values": [
+    "15.84",
+    "18.51",
+    "11.99"
+   ]
+  },
+  {
+   "id": "c33",
+   "kind": "quote",
+   "used_in": [
+    "occ.2"
+   ],
+   "text": "4-camera ablation setting",
+   "quote": "All configurations use 4 input cameras"
+  },
+  {
+   "id": "c34",
+   "kind": "quote",
+   "used_in": [
+    "gauss.0",
+    "gauss.1"
+   ],
+   "text": "static Gaussians, actor Gaussians, sky",
+   "quote": "we represent a driving scene with static Gaussians, actor-associated Gaussians, and a sky cubemap"
+  },
+  {
+   "id": "c35",
+   "kind": "table",
+   "used_in": [
+    "gauss.2"
+   ],
+   "text": "static PSNR 22.83 -> 24.27 (22.8 -> 24.3)",
+   "table": "Table 15",
+   "row": "static",
+   "values": [
+    "22.83",
+    "24.27"
+   ]
+  },
+  {
+   "id": "c36",
+   "kind": "table",
+   "used_in": [
+    "gauss.2"
+   ],
+   "text": "extrapolation dynamic PSNR 17.71 -> 15.84 (17.7 -> 15.8, worse)",
+   "table": "Table 15",
+   "row": "dynamic",
+   "values": [
+    "17.71",
+    "15.84"
+   ]
+  },
+  {
+   "id": "c37",
+   "kind": "quote",
+   "used_in": [
+    "pgo.2"
+   ],
+   "text": "edges between samples 1, 2, 4, 8 apart",
+   "quote": "factors connect samples separated by 1, 2, 4, or 8 sampled rows"
+  },
+  {
+   "id": "c38",
+   "kind": "table",
+   "used_in": [
+    "pgo.2"
+   ],
+   "text": "stitching ATE 69.53 cm (69.5, ≈70)",
+   "table": "Table 6",
+   "row": "Stitching, no mask",
+   "values": [
+    "69.53"
+   ]
+  },
+  {
+   "id": "c39",
+   "kind": "table",
+   "used_in": [
+    "pgo.2"
+   ],
+   "text": "PGO ATE 33.11 cm (33.1)",
+   "table": "Table 6",
+   "row": "PGO",
+   "values": [
+    "33.11"
+   ]
+  },
+  {
+   "id": "c40",
+   "kind": "table",
+   "used_in": [
+    "pgo.2"
+   ],
+   "text": "PGO + motion prior ATE 31.26 cm (31.3, ≈31)",
+   "table": "Table 6",
+   "row": "PGO + LM",
+   "values": [
+    "31.26"
+   ]
+  },
+  {
+   "id": "c41",
+   "kind": "quote",
+   "used_in": [
+    "pgo.2"
+   ],
+   "text": "motion prior penalizes velocity changes",
+   "quote": "penalizes changes between incoming and outgoing translation velocities"
+  },
+  {
+   "id": "c42",
+   "kind": "table",
+   "used_in": [
+    "track.1"
+   ],
+   "text": "HOTA velocity baseline 41.4",
+   "table": "Table 10",
+   "row": "Velocity baseline",
+   "values": [
+    "41.4"
+   ]
+  },
+  {
+   "id": "c43",
+   "kind": "table",
+   "used_in": [
+    "track.1"
+   ],
+   "text": "+ Kalman 42.1",
+   "table": "Table 10",
+   "row": "+ Kalman filtering",
+   "values": [
+    "42.1"
+   ]
+  },
+  {
+   "id": "c44",
+   "kind": "table",
+   "used_in": [
+    "track.2"
+   ],
+   "text": "+ RTS 43.6",
+   "table": "Table 10",
+   "row": "+ RTS smoothing",
+   "values": [
+    "43.6"
+   ]
+  },
+  {
+   "id": "c45",
+   "kind": "quote",
+   "used_in": [
+    "track.1"
+   ],
+   "text": "second pass reconnects fragments",
+   "quote": "a second pass with a longer lifetime reconnects remaining fragments"
+  },
+  {
+   "id": "c46",
+   "kind": "quote",
+   "used_in": [
+    "labels.1"
+   ],
+   "text": "moving cars: up to 10 scans, warped along track",
+   "quote": "dynamic points are collected from a local window of up to ten LiDAR scans"
+  },
+  {
+   "id": "c47",
+   "kind": "quote",
+   "used_in": [
+    "labels.2"
+   ],
+   "text": "1,253 clips",
+   "quote": "dense depth and semantic occupancy labels for 1,253 driving clips"
+  },
+  {
+   "id": "c48",
+   "kind": "quote",
+   "used_in": [
+    "labels.2"
+   ],
+   "text": "0.1 m voxels with velocity",
+   "quote": "The exported grid uses 0.1 m cubic voxels"
+  },
+  {
+   "id": "c49",
+   "kind": "table",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "Waymo depth AbsRel 0.09 vs GeoUP 0.13",
+   "table": "Table 2",
+   "row": "Foundation4D",
+   "values": [
+    "0.09",
+    "91.97",
+    "0.15"
+   ]
+  },
+  {
+   "id": "c50",
+   "kind": "table",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "GeoUP Waymo AbsRel 0.13",
+   "table": "Table 2",
+   "row": "GeoUP [3]",
+   "values": [
+    "0.13",
+    "87.30"
+   ]
+  },
+  {
+   "id": "c51",
+   "kind": "quote",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "nuScenes 60.9 mAP vs GeoUP-Joint",
+   "quote": "Foundation4D achieves the best results, 60.9 mAP and 66.5 NDS"
+  },
+  {
+   "id": "c52",
+   "kind": "table",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "GeoUP-Joint 59.2 mAP",
+   "table": "Table 7",
+   "row": "GeoUP-Joint",
+   "values": [
+    "59.2",
+    "65.3"
+   ]
+  },
+  {
+   "id": "c53",
+   "kind": "table",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "OpenOccupancy mIoU 18.1",
+   "table": "Table 12",
+   "row": "Foundation4D",
+   "values": [
+    "27.4",
+    "18.1"
+   ]
+  },
+  {
+   "id": "c54",
+   "kind": "table",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "SPSC-temporal mIoU 16.2",
+   "table": "Table 12",
+   "row": "SPSC-temporal",
+   "values": [
+    "25.5",
+    "16.2"
+   ]
+  },
+  {
+   "id": "c55",
+   "kind": "quote",
+   "used_in": [
+    "results.0"
+   ],
+   "text": "best among compared methods, after benchmark-specific fine-tuning",
+   "quote": "With benchmark-specific fine-tuning, Foundation4D achieves the lowest depth AbsRel on Waymo and nuScenes, the highest detection mAP on nuScenes, and the highest occupancy mIoU on OpenOccupancy among the compared methods"
+  },
+  {
+   "id": "c56",
+   "kind": "table",
+   "used_in": [
+    "results.1"
+   ],
+   "text": "NuRec 16.0 h -> 3.7 h (16 hours)",
+   "table": "Table 18",
+   "row": "End-to-end lidarless NuRec",
+   "values": [
+    "16.0",
+    "3.7"
+   ]
+  },
+  {
+   "id": "c57",
+   "kind": "table",
+   "used_in": [
+    "results.1"
+   ],
+   "text": "camera pose 3.5 h -> 0.4 h",
+   "table": "Table 18",
+   "row": "Camera pose estimation",
+   "values": [
+    "3.5",
+    "0.4"
+   ]
+  },
+  {
+   "id": "c58",
+   "kind": "table",
+   "used_in": [
+    "results.1"
+   ],
+   "text": "depth 8.0 h -> 1.0 h",
+   "table": "Table 18",
+   "row": "Depth estimation and fusion",
+   "values": [
+    "8.0",
+    "1.0"
+   ]
+  },
+  {
+   "id": "c59",
+   "kind": "quote",
+   "used_in": [
+    "results.1"
+   ],
+   "text": "4.3x, includes release differences",
+   "quote": "a reduction in end-to-end workflow turnaround from 16.0 to 3.7 hours per clip, a 4.3× speedup"
+  },
+  {
+   "id": "c60",
+   "kind": "quote",
+   "used_in": [
+    "limits.0"
+   ],
+   "text": "long range is hard (depth)",
+   "quote": "Depth errors increase at long range and around object boundaries"
+  },
+  {
+   "id": "c61",
+   "kind": "quote",
+   "used_in": [
+    "limits.0"
+   ],
+   "text": "crowded scenes break tracks",
+   "quote": "Detection errors in crowded scenes and at long range also affect tracking"
+  },
+  {
+   "id": "c62",
+   "kind": "quote",
+   "used_in": [
+    "limits.0"
+   ],
+   "text": "thin structures, rare classes",
+   "quote": "rare classes are often missed or assigned incorrect semantic labels"
+  },
+  {
+   "id": "c63",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "full forward 19.8 s (≈20 s) at T=48 on one H100, 6 cameras",
+   "table": "Table 17",
+   "row": "Full forward (s)",
+   "values": [
+    "19.782"
+   ]
+  },
+  {
+   "id": "c64",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "58 GiB peak memory",
+   "table": "Table 17",
+   "row": "Peak allocated memory (GiB)",
+   "values": [
+    "58.41"
+   ]
+  },
+  {
+   "id": "c65",
+   "kind": "table",
+   "used_in": [
+    "limits.1"
+   ],
+   "text": "component times at T=48",
+   "table": "Table 17",
+   "row": "Image encoder",
+   "values": [
+    "4.455"
+   ]
+  },
+  {
+   "id": "c66",
+   "kind": "opinion",
+   "used_in": [
+    "limits.2"
+   ],
+   "text": "better suited to offline labeling/simulation than real-time driving",
+   "on_screen_label": "narration frames it as 'think of it as'; based on c63 (19.8 s per window). The on-screen flow box states it as fact: verifier to judge."
+  }
+ ],
+ "allow_numbers": {
+  "2610.30340": "arXiv id",
+  "2026.10": "arXiv submission month (Oct 2026)"
+ }
+}

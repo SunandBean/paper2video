@@ -1,0 +1,12 @@
+node_modules/
+models/
+.venv/
+jobs/*
+!jobs/2610.30340/
+!jobs/_smoke/
+jobs/*/build/
+jobs/*/paper/paper.pdf
+.DS_Store
+logs/
+__pycache__/
+local/

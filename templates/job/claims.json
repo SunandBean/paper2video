@@ -1,0 +1,10 @@
+{
+  "paper": "",
+  "claims": [
+    { "id": "c01", "kind": "quote", "used_in": ["problem.0"], "text": "what the video says", "quote": "verbatim sentence copied from paper.txt" },
+    { "id": "c02", "kind": "table", "used_in": ["results.0"], "text": "X beats Y on Z", "table": "Table 2", "row": "Method name", "values": ["0.09"] },
+    { "id": "c03", "kind": "derived", "used_in": ["attention.0"], "text": "≈4.3B pairs", "from": ["c01"], "derivation": "how it was computed", "on_screen_label": "(rough estimate)" },
+    { "id": "c04", "kind": "opinion", "used_in": ["limits.2"], "text": "better suited to offline use", "on_screen_label": "framed as 'think of it as'" }
+  ],
+  "allow_numbers": { "1": "section numbering" }
+}

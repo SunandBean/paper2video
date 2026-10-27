@@ -1,0 +1,255 @@
+{
+ "arxiv": "2610.30340",
+ "title": "Foundation4D: Towards a unified perception and reconstruction model for autonomous vehicles",
+ "lang": "en",
+ "tts": {
+  "engine": "kokoro",
+  "voice": "af_heart",
+  "speed": 1.0
+ },
+ "style": {
+  "subtitleSize": 40
+ },
+ "scenes": [
+  {
+   "id": "title",
+   "label": "",
+   "s": [
+    [
+     "Let's break down NVIDIA's Foundation4D paper, one idea at a time.",
+     "Let's break down NVIDIA's Foundation 4D paper, one idea at a time."
+    ]
+   ]
+  },
+  {
+   "id": "problem",
+   "label": "The problem",
+   "s": [
+    [
+     "A self-driving car needs four views of its world: depth, 3D objects, occupied space, and a full 3D reconstruction.",
+     "A self-driving car needs four views of its world: depth, 3D objects, occupied space, and a full 3D reconstruction."
+    ],
+    [
+     "Until now, each one usually had its own network, and every network re-processed the same video.",
+     "Until now, each one usually had its own network, and every network re-processed the same video."
+    ],
+    [
+     "Foundation4D merges them into one model: a single shared backbone, with four task heads on top.",
+     "Foundation 4D merges them into one model. A single shared backbone, with four task heads on top."
+    ]
+   ]
+  },
+  {
+   "id": "input",
+   "label": "① Input",
+   "s": [
+    [
+     "The input is video from six cameras mounted around the car.",
+     "The input is video from six cameras, mounted all around the car."
+    ],
+    [
+     "The video is cut into short windows, so the model sees several moments at once.",
+     "The video is cut into short windows, so the model sees several moments at once."
+    ],
+    [
+     "Each camera fires at a slightly different instant, so every image keeps its own capture time.",
+     "And since each camera fires at a slightly different instant, every image keeps its own capture time."
+    ]
+   ]
+  },
+  {
+   "id": "attention",
+   "label": "② Shared backbone",
+   "s": [
+    [
+     "If every image patch looked at every other patch, the cost would grow with the square of the token count.",
+     "If every image patch had to look at every other patch, the cost would grow with the square of the token count."
+    ],
+    [
+     "So the model alternates: cameras at the same moment look at each other, then each camera looks across time.",
+     "So instead, the model alternates. Cameras at the same moment look at each other. Then, each camera looks across time."
+    ],
+    [
+     "Attention gets far cheaper. It costs a little accuracy, but it makes long videos manageable.",
+     "Attention gets far cheaper. It costs a little accuracy, but it's what makes long videos manageable."
+    ]
+   ]
+  },
+  {
+   "id": "pose",
+   "label": "③ Geometry · camera pose",
+   "s": [
+    [
+     "Next: where is each camera? The model splits that question in two.",
+     "Next question: where is each camera? The model splits that in two."
+    ],
+    [
+     "Ego motion, how the car moves over time, and the rig, where each camera is bolted onto the car.",
+     "Ego motion, which is how the car moves over time. And the rig, which is where each camera is bolted onto the car."
+    ],
+    [
+     "At 108 km/h, a 10 ms timing gap is already 30 cm, so every image is placed at its true capture time.",
+     "At a hundred and eight kilometers per hour, a ten millisecond gap is already thirty centimeters. So every image is placed at its true capture time."
+    ]
+   ]
+  },
+  {
+   "id": "depth",
+   "label": "③ Geometry · depth → 3D",
+   "s": [
+    [
+     "For every pixel, the model predicts depth, then lifts it into a 3D point using the camera pose.",
+     "For every pixel, the model predicts depth, then lifts it into a 3D point using the camera pose."
+    ],
+    [
+     "The biggest single win? Training every window in the same metric units.",
+     "The biggest single win? Training every window in the same metric units."
+    ],
+    [
+     "That alone roughly halved the trajectory error, from about 142 cm to 71 cm.",
+     "That alone roughly halved the trajectory error, from about a hundred and forty two centimeters, down to seventy one."
+    ]
+   ]
+  },
+  {
+   "id": "detect",
+   "label": "④ 3D Detection",
+   "s": [
+    [
+     "For detection, 900 learned queries are scattered through 3D space. Each one asks: \"Is there an object near me?\"",
+     "For detection, nine hundred learned queries are scattered through 3D space. Each one asks: is there an object near me?"
+    ],
+    [
+     "Each query samples only the image regions it needs, then predicts a 3D box and a velocity.",
+     "Each query samples only the image regions it needs, then predicts a 3D box, and a velocity."
+    ],
+    [
+     "And with about 2 seconds of context, accuracy (mAP) jumps from 37 to 47, with no retraining.",
+     "And here's a neat result. With about two seconds of context, accuracy jumps from thirty seven to forty seven, with no retraining at all."
+    ]
+   ]
+  },
+  {
+   "id": "occ",
+   "label": "⑤ Occupancy",
+   "s": [
+    [
+     "Occupancy fills the space around the car with small blocks. Done naively, that's about 7.2 million cells.",
+     "Occupancy fills the space around the car with small blocks. Done naively, that's about seven point two million cells."
+    ],
+    [
+     "So the model works on a flat bird's-eye-view (BEV) map, and only expands it into height at the end.",
+     "So the model works on a flat, bird's eye view map, and only expands it into height at the very end."
+    ],
+    [
+     "The catch: beyond 50 meters, accuracy drops sharply.",
+     "The catch? Beyond fifty meters, accuracy drops sharply."
+    ]
+   ]
+  },
+  {
+   "id": "gauss",
+   "label": "⑥ Gaussian reconstruction",
+   "s": [
+    [
+     "To rebuild the scene, every pixel becomes a small 3D Gaussian, a soft blob you can render from new viewpoints.",
+     "To rebuild the scene, every pixel becomes a small 3D Gaussian. A soft blob you can render from brand new viewpoints."
+    ],
+    [
+     "Background, moving cars, and sky are handled separately, and each car's blobs travel along its track.",
+     "Background, moving cars, and sky are handled separately. And each car's blobs travel along its track."
+    ],
+    [
+     "Static scenery comes out sharper than before, but moving cars in future frames are still a weak spot.",
+     "Static scenery comes out sharper than before. But moving cars, in future frames, are still a weak spot."
+    ]
+   ]
+  },
+  {
+   "id": "pgo",
+   "label": "⑦ Stitching long videos",
+   "s": [
+    [
+     "The model only sees a short window at a time, so long drives must be stitched from overlapping pieces.",
+     "The model only sees a short window at a time. So long drives have to be stitched together from overlapping pieces."
+    ],
+    [
+     "Chain them one after another (stitching), and small errors keep piling up.",
+     "Chain them one after another, and small errors keep piling up."
+    ],
+    [
+     "Instead, tie every window into one pose graph (PGO) and solve it all at once: error drops from about 70 cm to 31 cm.",
+     "Instead, tie every window into one pose graph, and solve it all at once. The error drops from about seventy centimeters, to thirty one."
+    ]
+   ]
+  },
+  {
+   "id": "track",
+   "label": "⑧ Tracking",
+   "s": [
+    [
+     "Detections from each frame are linked over time into a trajectory for every object.",
+     "Detections from each frame are linked over time, into a trajectory for every object."
+    ],
+    [
+     "A Kalman filter predicts where each object goes next, and a second pass reconnects broken tracks.",
+     "A Kalman filter predicts where each object goes next. And a second pass reconnects tracks that broke apart."
+    ],
+    [
+     "Since this runs offline, it can even use future observations to smooth the past (RTS smoother).",
+     "Since this all runs offline, it can even use future observations, to smooth out the past."
+    ]
+   ]
+  },
+  {
+   "id": "labels",
+   "label": "⑨ Building ground truth",
+   "s": [
+    [
+     "Training needs ground truth, so the team built it by stacking LiDAR scans over time.",
+     "To train all this, you need ground truth. So the team built it by stacking LiDAR scans over time."
+    ],
+    [
+     "Static things are accumulated over the whole clip, while moving cars are shifted along their tracks so they don't smear.",
+     "Static things are accumulated over the whole clip. Moving cars are shifted along their tracks, so they don't smear."
+    ],
+    [
+     "It's released as a benchmark: PAI-Foundation4D, with 1,253 driving clips.",
+     "And it's released as a benchmark, P A I Foundation 4D, with twelve hundred and fifty three driving clips."
+    ]
+   ]
+  },
+  {
+   "id": "results",
+   "label": "⑩ Results",
+   "s": [
+    [
+     "The results? Best among the compared methods on depth, detection, and occupancy, after per-benchmark fine-tuning.",
+     "The results? Best among the compared methods on depth, detection, and occupancy, after fine tuning for each benchmark."
+    ],
+    [
+     "And in NVIDIA's simulation pipeline (NuRec), swapping LiDAR for this model cut processing from 16 hours per clip to 3.7.",
+     "And in NVIDIA's simulation pipeline, swapping LiDAR for this model cut processing time from sixteen hours per clip, to just three point seven."
+    ]
+   ]
+  },
+  {
+   "id": "limits",
+   "label": "⑪ Limits & takeaway",
+   "s": [
+    [
+     "It's not perfect. Far-away objects, crowded scenes, and thin structures are still hard.",
+     "It's not perfect. Far away objects, crowded scenes, and thin structures are still hard."
+    ],
+    [
+     "And it's heavy: one window of 6 cameras × 48 timestamps takes about 20 seconds on a single H100.",
+     "And it's heavy. One window of six cameras and forty eight timestamps takes about twenty seconds, on a single H one hundred."
+    ],
+    [
+     "So think of it less as a real-time driving brain, and more as a tool that turns driving logs into labels and simulation-ready 3D worlds.",
+     "So think of it less as a real-time driving brain, and more as a tool that turns driving logs into labels, and simulation-ready 3D worlds."
+    ]
+   ]
+  }
+ ]
+}
