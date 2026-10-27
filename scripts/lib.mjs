@@ -40,5 +40,26 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root)) {
   const step = Math.max(1, Math.floor(n / 16));
   const contact = path.join(b, 'contact.jpg');
   run(ffmpeg, ['-y', '-loglevel', 'error', '-i', output, '-vf', `select='not(mod(n+${Math.floor(step / 2)}\\,${step}))',scale=480:-1,tile=4x4`, '-fps_mode', 'vfr', '-frames:v', '1', contact]);
-  return { output, contact };
+  const shortcut = publish(root, job, output);
+  return { output, contact, shortcut };
+}
+
+// Final videos land in one flat folder: $P2V_OUT or <skill>/videos/, named "<id>_<Short-Title>[_ko].mp4".
+// Hard link when possible (no extra disk), copy otherwise. Re-renders overwrite the same name.
+export const videosDir = root => path.resolve((process.env.P2V_OUT || path.join(root, 'videos')).replace(/^~(?=\/|$)/, process.env.HOME || ''));
+export function videoName(root, job) {
+  const J = path.join(jobsDir(root), job);
+  const read = f => { try { return JSON.parse(fs.readFileSync(path.join(J, f), 'utf8')); } catch { return {}; } };
+  const meta = read('paper/meta.json'), script = read('script.json');
+  const title = (meta.title || script.title || '').split(':')[0].trim();
+  const slug = title.normalize('NFKD').replace(/[^\w\s-]/g, '').trim().split(/\s+/).slice(0, 6).join('-').slice(0, 60);
+  const lang = (script.lang || 'en').toLowerCase();
+  return `${job}${slug ? '_' + slug : ''}${lang !== 'en' ? '_' + lang : ''}.mp4`;
+}
+export function publish(root, job, output) {
+  const dir = videosDir(root); fs.mkdirSync(dir, { recursive: true });
+  const dest = path.join(dir, videoName(root, job));
+  fs.rmSync(dest, { force: true });
+  try { fs.linkSync(output, dest); } catch { fs.copyFileSync(output, dest); }
+  return dest;
 }

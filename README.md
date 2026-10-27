@@ -34,7 +34,8 @@ In any Claude Code session:
 
 The skill only runs when you call it (`disable-model-invocation: true`); pasting a paper link in a normal chat does nothing special.
 
-Outputs go to `jobs/<id>/build/<id>.mp4` inside the skill folder (git-ignored except the two examples), or to `$P2V_JOBS/<id>/` if you set `P2V_JOBS`.
+Finished videos appear in `videos/` with readable names (e.g. `videos/2610.30340_Foundation4D.mp4`); set `P2V_OUT` to use another folder.
+Working files stay in `jobs/<id>/` (or `$P2V_JOBS/<id>/`). `node scripts/collect.mjs` re-collects all finished videos.
 Unattended run from a terminal or another bot: `./run.sh <arxiv link or id>`.
 
 ## What's inside

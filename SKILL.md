@@ -47,7 +47,7 @@ When the overrides ask for Korean:
 - Rendering needs a Korean font (macOS has Apple SD Gothic Neo; on Linux install Noto Sans CJK).
 
 ## Final report (always, at the end)
-Per step: done / failed + output path · VERIFY.md verdict and open items · video path + length ·
+Per step: done / failed + output path · VERIFY.md verdict and open items · video path in `videos/` + length ·
 new templates added · wall-clock time · anything the user should look at first.
 One-time setup: `./setup.sh` (node deps, ffmpeg, Playwright Chromium, Python 3.10-3.13 venv, Kokoro voice models).
 If the default `python3` is 3.14+, setup picks python3.13/3.12 automatically, or set `PYTHON=/path/to/python3.12`.
@@ -66,7 +66,7 @@ Use `./.venv/bin/python` for the Python scripts.
 | 7 | Scenes | `jobs/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |
 | 8 | Narration + timing | `./.venv/bin/python scripts/tts.py <id>` → `build/narration.wav`, `build/timing.json` |
 | 9 | Preview QA | `node scripts/render.mjs <id> --preview` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
-| 10 | Render | `node scripts/render.mjs <id>` → `build/<id>.mp4` + `build/contact.jpg` (no Playwright: `--manual`, open the URL in any browser) |
+| 10 | Render | `node scripts/render.mjs <id>` → `videos/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `--manual`, open the URL in any browser) |
 | 11 | Final checks | Re-run step 5 (scenes may have added numbers). Watch `contact.jpg` |
 | 12 | Report | Final report (below). If `local/*.md` exists in the skill folder, follow those personal add-on steps after this one |
 

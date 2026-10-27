@@ -298,21 +298,21 @@ export function splitBar({ heading = '', parts, total, sentence = 0, box = [160,
       if (heading) txt(ctx, heading, x, y - 26, { size: 26, weight: 800, alpha: a });
       txt(ctx, `${N} ${unit}`, x + w, y - 26, { size: 22, color: C.gray, align: 'right', alpha: a });
       rrect(ctx, x, y, w, h, 10, 'rgba(255,255,255,.06)', 'rgba(255,255,255,.18)', 2, a);
-      // labels sit under their segment, pushed right (and down a row) so neighbours never overlap
-      let cx = x, end = -1e9, row = 0;
+      // labels sit under their segment; a label that would overlap its left neighbour drops to the next free row
+      let cx = x; const ends = [];
       ctx.save(); ctx.font = `700 22px ${FONT}`;
       const tw = parts.map(q => ctx.measureText(`${q.n} ${q.label}`).width); ctx.restore();
       parts.forEach((q, i) => {
         const g = eo(seg(S.P(q.sentence ?? sentence), .05 + i * .08, .35 + i * .08)), pw = w * q.n / N, la = a * clamp(g * 2 - 1);
-        let lx = Math.max(cx + pw / 2 - tw[i] / 2, x);
-        if (lx < end + 24) { if (row === 0 && i > 0) { row = 1; } else { lx = end + 24; } }
+        const lx = Math.min(Math.max(cx + pw / 2 - tw[i] / 2, x), x + w - tw[i]);
+        let row = 0; while (ends[row] != null && lx < ends[row] + 24) row++;
+        ends[row] = lx + tw[i];
         if (g > 0) {
           rrect(ctx, cx + 2, y + 2, Math.max(0, pw * g - 4), h - 4, 8, q.color, null, 0, a);
           if (pw > 50) txt(ctx, String(q.n), cx + pw / 2, y + h / 2 + 11, { size: 30, weight: 800, align: 'center', color: '#0b0f14', alpha: la });
           rrect(ctx, cx + pw / 2 - 1, y + h + 4, 2, 14 + row * 34, 1, q.color, null, 0, la * .7);
           txt(ctx, `${q.n} ${q.label}`, lx, y + h + 42 + row * 34, { size: 22, weight: 700, color: q.color, alpha: la });
         }
-        if (row === 0) end = lx + tw[i];
         cx += pw;
       });
     }

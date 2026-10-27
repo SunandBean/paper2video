@@ -11,3 +11,4 @@ jobs/*/paper/paper.pdf
 logs/
 __pycache__/
 local/
+videos/
