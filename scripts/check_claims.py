@@ -25,13 +25,18 @@ def norm(s):
     s = re.sub(r'\s+', ' ', s)
     return s.lower().strip()
 
-NUM = re.compile(r'(?<![\w.])\d+(?:[.,]\d+)*')
+# A shown number keeps its sign, exponent and power, so "-3" is not covered by "3", nor "1e-3" by "1" and "3".
+# A minus counts as a sign only when it does not follow a word character ("2-3" is a range: 2 and 3).
+NUM = re.compile(r'(?<![\w.])([-+]?)(\d+(?:[.,]\d+)*)((?:[eE][-+]?\d+)|(?:\^\{?[-+]?\d+\}?))?')
 def nums(s):
+    s = re.sub(r'[\u2460-\u24ff\u2776-\u2793]', ' ', s)   # circled step numbers (①, ⑪) are labels, not data
+    s = unicodedata.normalize('NFKC', s).replace('\u2212', '-')
     out = []
     for m in NUM.finditer(s):
-        v = m.group(0)
+        sign, v, ex = m.group(1), m.group(2), m.group(3) or ''
         v = v.replace(',', '') if re.fullmatch(r'\d{1,3}(,\d{3})+', v) else v
-        out.append(v.rstrip('.'))
+        ex = ex.replace('{', '').replace('}', '').replace('E', 'e')
+        out.append(('-' if sign == '-' else '') + v.rstrip('.') + ex)
     return out
 
 def string_literals(js):

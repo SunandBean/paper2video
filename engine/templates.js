@@ -3,6 +3,10 @@
 // For 3D building blocks (car + camera rig, procedural street, point/splat clouds) see core.js.
 import { W, H, C, FONT, clamp, lerp, eo, seg, rng, txt, rrect, panel, arrow, chip, CAMS, hex } from '/engine/core.js';
 
+// Bad template input fails loudly when scenes.js builds the scene (the render stops with this message)
+// instead of drawing NaN geometry or hanging.
+const need = (ok, msg) => { if (!ok) throw new Error(`template input: ${msg}`); };
+
 export function titleCard({ title, subtitle = '', note = '', tag = '' }) {
   return {
     draw(ctx, S) {
@@ -33,6 +37,8 @@ export function bulletCards({ items, sentence = 0, y = 170, h = 190 }) {
 
 // rows: [{ label, sub, base: { name, value }, ours: { name, value }, max, digits }]
 export function barCompare({ heading, rows, sentence = 0, footnote = '' }) {
+  need(Array.isArray(rows) && rows.length, 'barCompare needs rows');
+  rows.forEach((r, k) => need(r.max > 0 && Number.isFinite(r.base?.value) && Number.isFinite(r.ours?.value), `barCompare row ${k} needs base.value, ours.value and max > 0`));
   return {
     draw(ctx, S) {
       const p = S.P(sentence);
@@ -57,6 +63,8 @@ export function barCompare({ heading, rows, sentence = 0, footnote = '' }) {
 // points: [[x, y], ...]; labels: indexes to print values for
 // reverseX: larger x on the left (e.g. noise level 1 -> 0); highlight: point index drawn as a ringed marker
 export function lineChart({ heading, points, sentence = 0, logX = false, reverseX = false, highlight = -1, yMin, yMax, xLabel = '', yLabel = '', labels = [], box = [1180, 130, 680, 430] }) {
+  need(Array.isArray(points) && points.length && points.every(p => Number.isFinite(p[0]) && Number.isFinite(p[1])), 'lineChart needs [[x, y], ...] numbers');
+  need(!logX || points.every(p => p[0] > 0), 'lineChart logX needs x > 0');
   const [x, y, w, h] = box;
   const xs = points.map(p => (logX ? Math.log2(p[0]) : p[0])), x0 = Math.min(...xs), x1 = Math.max(...xs);
   const lo = yMin ?? Math.min(...points.map(p => p[1])), hi = yMax ?? Math.max(...points.map(p => p[1]));
@@ -135,7 +143,9 @@ export function mathText(ctx, s, x, y, o = {}) {
   while (i < s.length) {
     const ch = s[i];
     if ((ch === '_' || ch === '^') && i + 1 < s.length) {
-      let body; if (s[i + 1] === '{') { const j = s.indexOf('}', i); body = s.slice(i + 2, j); i = j + 1; } else { body = s[i + 1]; i += 2; }
+      let body;
+      if (s[i + 1] === '{') { const j = s.indexOf('}', i + 2); const end = j < 0 ? s.length : j; body = s.slice(i + 2, end); i = end + 1; }  // unclosed brace: rest of string
+      else { body = s[i + 1]; i += 2; }
       toks.push({ t: body, k: ch });
     } else { const last = toks[toks.length - 1]; if (last && !last.k) last.t += ch; else toks.push({ t: ch, k: '' }); i++; }
   }
@@ -191,8 +201,12 @@ export function noisyTile(ctx, x, y, size, noise, seeds = [1], alpha = 1, { cell
 // highlight: series index drawn with value in bold; legend sits above the plot.
 export function groupBars({ heading = '', groups, series, values, min = 0, max, digits = 3, unit = '', lowerBetter = false,
   sentence = 0, box = [100, 150, 1720, 700], highlight = -1, footnote = '', reveal = null }) {
+  need(Array.isArray(groups) && groups.length && Array.isArray(series) && series.length, 'groupBars needs groups and series');
+  need(Array.isArray(values) && values.length === groups.length && values.every(r => Array.isArray(r) && r.length === series.length),
+    `groupBars values must be ${groups.length} rows x ${series.length} columns`);
   const [x, y, w, h] = box;
   const top = Math.max(...values.flat().filter(v => v != null)), hi = max ?? top * 1.12;
+  need(Number.isFinite(hi) && hi > min, `groupBars needs max (or the largest value) above min (${min})`);
   return {
     draw(ctx, S) {
       const p = S.P(sentence), a = eo(seg(p, 0, .15));
@@ -290,7 +304,9 @@ export function checkTable({ heading = '', cols, rows, sentence = 0, box = [100,
 // Horizontal outcome bar (e.g. "39 successes / 7 detection / 3 no grasp / 1 collision" out of N trials).
 // parts: [{ label, n, color, sentence }]; each part grows during its own sentence (default: `sentence`).
 export function splitBar({ heading = '', parts, total, sentence = 0, box = [160, 620, 1600, 70], unit = 'trials' }) {
+  need(Array.isArray(parts) && parts.length, 'splitBar needs parts');
   const [x, y, w, h] = box, N = total ?? parts.reduce((s, q) => s + q.n, 0);
+  need(N > 0, 'splitBar total must be > 0');
   return {
     draw(ctx, S) {
       const a = eo(seg(S.P(parts[0].sentence ?? sentence), 0, .15));

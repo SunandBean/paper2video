@@ -17,7 +17,7 @@ import { resolveFfmpeg, mux, jobsDir, toolsDir } from './lib.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary' };
 const status = {};
-const JOB_RE = /^(?!\.{1,2}$)[\w.-]+$/;
+const JOB_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;   // same rule as p2v
 const inside = (base, p) => p === base || p.startsWith(base + path.sep);
 const MAX_BODY = 32 * 1024 * 1024;  // a 1080p JPEG frame is well under 1 MB
 const readBody = req => new Promise((res, rej) => {
@@ -82,6 +82,9 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
       const p = path.resolve(base, sub);
       // Only the player's own files: no dotfiles (.tools, .git), nothing outside its base folder.
       if (!inside(base, p) || (base === ROOT && /(^|[\\/])\./.test(path.relative(ROOT, p)))) { res.writeHead(403); res.end(); return; }
+      // ...and no symlink inside it that points elsewhere.
+      let realP; try { realP = fs.realpathSync(p); } catch { res.writeHead(404); res.end('not found'); return; }
+      if (!inside(fs.realpathSync(base), realP)) { res.writeHead(403); res.end(); return; }
       fs.readFile(p, (e, d) => {
         if (e) { res.writeHead(404); res.end('not found'); return; }
         res.writeHead(200, { 'Content-Type': types[path.extname(p)] || 'application/octet-stream', 'Cache-Control': 'no-store' });

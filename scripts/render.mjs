@@ -17,6 +17,7 @@ const preview = process.argv.includes('--preview');
 const manual = process.argv.includes('--manual');
 const port = parseInt(process.env.PORT || '0', 10);  // 0 = any free port
 if (!job) { console.error('usage: node scripts/render.mjs <job> [--preview|--manual]'); process.exit(2); }
+if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(job)) { console.error(`not a job id: ${job}`); process.exit(2); }
 const B = path.join(jobsDir(ROOT), job, 'build');
 if (!fs.existsSync(path.join(B, 'timing.json'))) { console.error(`missing ${B}/timing.json. Run: ./p2v tts ${job}`); process.exit(2); }
 // Refuse stale inputs: narration/timing must be newer than script.json (tts.py rewrites both).

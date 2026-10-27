@@ -18,10 +18,7 @@ Engines (picked from script.json "lang" unless tts.engine is set)
   silent      no audio; durations estimated from word count. For layout previews only.
 """
 import argparse, hashlib, json, os, sys, wave, urllib.request
-try:
-    import numpy as np
-except ModuleNotFoundError:
-    sys.exit('numpy missing: run ./p2v setup, then ./p2v tts <job>')
+np = None  # imported in main(): `--download-models` must work before the venv is proven importable
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from p2v_paths import ROOT, JOBS, MODELS  # noqa: E402
@@ -38,12 +35,13 @@ def sha256(p):
         for b in iter(lambda: f.read(1 << 20), b''): h.update(b)
     return h.hexdigest()
 
-def ensure_models():
-    """Download the Kokoro files once and verify size + SHA-256 (a corrupt or tampered file is replaced or rejected)."""
+def ensure_models(full_check=False):
+    """Download the Kokoro files once and verify size + SHA-256. Every run checks the size; setup
+    (full_check) also re-hashes existing files, so a corrupt or replaced file is downloaded again."""
     os.makedirs(MODELS, exist_ok=True)
     for name, (size, digest) in KOKORO_FILES.items():
         p = os.path.join(MODELS, name)
-        if os.path.exists(p) and os.path.getsize(p) == size:
+        if os.path.exists(p) and os.path.getsize(p) == size and (not full_check or sha256(p) == digest):
             continue
         print(f'downloading {name} ({size / 1e6:.0f} MB) ...', flush=True)
         urllib.request.urlretrieve(REL + name, p + '.part')
@@ -77,7 +75,12 @@ def trim(x, thr=10 ** (-45 / 20)):
 
 def main():
     if sys.argv[1:] == ['--download-models']:
-        ensure_models(); print('kokoro models ok'); return
+        ensure_models(full_check=True); print('kokoro models ok (SHA-256 verified)'); return
+    global np
+    try:
+        import numpy as np
+    except Exception as e:
+        sys.exit(f'numpy cannot be imported ({e.__class__.__name__}): run ./p2v setup, then ./p2v tts <job>')
     ap = argparse.ArgumentParser()
     ap.add_argument('job')
     ap.add_argument('--engine'); ap.add_argument('--voice'); ap.add_argument('--speed', type=float)
@@ -134,7 +137,7 @@ def main():
         wf.setnchannels(1); wf.setsampwidth(2); wf.setframerate(SR)
         wf.writeframes((audio * 32767).astype('<i2').tobytes())
     with open(os.path.join(B, 'timing.json'), 'w', encoding='utf-8') as f: json.dump(timeline, f, ensure_ascii=False, indent=1)
-    print(f'total {T:.1f}s  engine={engine} voice={voice} lang={slang}  -> {B}/timing.json')
+    print(f'total {T:.1f}s  engine={engine}' + (f' voice={voice}' if engine != 'silent' else '') + f' lang={slang}  -> {B}/timing.json')
 
 if __name__ == '__main__':
     main()

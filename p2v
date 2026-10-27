@@ -41,6 +41,10 @@ seed_job() {
   mkdir -p "$P2V_JOBS" && cp -R "$ROOT/jobs/$j" "$P2V_JOBS/$j" && rm -rf "$P2V_JOBS/$j/build"
 }
 
+# macOS: files downloaded by a quarantine-aware parent (some sandboxes, GUI apps) carry com.apple.quarantine,
+# and the first dlopen/exec of them is refused or killed. Clear it right after each install step, before use.
+unquarantine() { [ "$(uname)" = "Darwin" ] || return 0; local d; for d in "$@"; do [ -e "$d" ] && xattr -dr com.apple.quarantine "$d" 2>/dev/null; done; return 0; }
+
 pick_python() {   # kokoro-onnx needs Python 3.10-3.13 (no 3.14 wheels yet)
   local c v
   for c in "${PYTHON:-}" python3.13 python3.12 python3.11 python3.10 \
@@ -75,7 +79,9 @@ setup() {
     (cd "$T" && npm ci --no-fund --no-audit --loglevel=error) || { rm -f "$T/package-lock.json"; exit 1; }
   fi
   [ -x "$T/node_modules/ffmpeg-static/ffmpeg" ] || (cd "$T" && node node_modules/ffmpeg-static/install.js)
+  unquarantine "$T/node_modules"
   (cd "$T" && npx --yes playwright install chromium) || echo "!! Chromium install failed: render with 'p2v render <job> --manual' in any browser"
+  unquarantine "${PLAYWRIGHT_BROWSERS_PATH:-$HOME/Library/Caches/ms-playwright}"
   echo "== python venv"
   local P; P=$(pick_python) || { echo "!! Need Python 3.10-3.13 (brew install python@3.12, or set PYTHON=/path/to/python3.12)"; exit 1; }
   echo "using $P ($("$P" -V))"
@@ -86,13 +92,10 @@ setup() {
   [ -x "$T/.venv/bin/python" ] || "$P" -m venv "$T/.venv"
   "$T/.venv/bin/pip" install -q --upgrade pip
   "$T/.venv/bin/pip" install -q -r "$ROOT/requirements.txt"
+  unquarantine "$T/.venv"
   echo "== Kokoro voice model (~350 MB, once)"
   "$T/.venv/bin/python" "$ROOT/scripts/tts.py" --download-models   # verifies size + SHA-256
-  # Downloaded binaries can carry com.apple.quarantine and get killed on first run.
-  if [ "$(uname)" = "Darwin" ]; then
-    xattr -cr "$T/node_modules/ffmpeg-static" "$T/models" "$T/.venv" 2>/dev/null || true
-    xattr -dr com.apple.quarantine "${PLAYWRIGHT_BROWSERS_PATH:-$HOME/Library/Caches/ms-playwright}" 2>/dev/null || true
-  fi
+  unquarantine "$T/models"
   command -v pdftotext >/dev/null || echo "note: pdftotext not found (brew install poppler); fetch falls back to pypdf"
   doctor
   echo "setup done. Optional toolchain test: $ROOT/p2v smoke"

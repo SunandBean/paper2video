@@ -1,5 +1,5 @@
 // Generic timeline player for a job.
-// URL: /engine/index.html?job=<jobId>[&capture=1][&t=<sec>][&q=0.9]
+// URL: /engine/index.html?job=<jobId>[&capture=1 | &scan=1][&t=<sec>][&q=0.9]
 // Loads jobs/<job>/build/timing.json (from scripts/tts.py), jobs/<job>/script.json (labels),
 // and jobs/<job>/scenes.js (default export or named exports: sceneId -> factory()).
 import { W, H, FPS, C, renderer, glc, txt, rrect, chip, seg, eo, FONT } from '/engine/core.js';
@@ -113,11 +113,10 @@ window.READY = true;
 // Self-driving capture mode: any browser (Playwright, Aside tab, Chrome) can render the job.
 if (params.get('capture') === '1') {
   const q = parseFloat(params.get('q') || '0.9');
-  const start = parseInt(params.get('from') || '0', 10);
   (async () => {
     try {
-      for (let f = start; f < window.NFRAMES; f += 150) await window.capture(f, Math.min(window.NFRAMES, f + 150), q);
-      if (start === 0) await postText('render', window.onscreenText());
+      for (let f = 0; f < window.NFRAMES; f += 150) await window.capture(f, Math.min(window.NFRAMES, f + 150), q);
+      await postText('render', window.onscreenText());
       const res = await fetch(`/done/${encodeURIComponent(JOB)}?frames=${window.NFRAMES}`, { method: 'POST' });
       if (!res.ok) throw new Error(`done: server answered ${res.status}`);
       window.CAPTURE_DONE = true;
