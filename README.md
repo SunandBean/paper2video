@@ -6,6 +6,18 @@ A Claude Code skill: arXiv paper in, narrated and fact-checked explainer video o
 /paper2video https://arxiv.org/abs/2610.30340
 ```
 
+![paper2video demo: depth to 3D points, query-based detection, BEV occupancy](docs/demo.gif)
+
+*Clips from the bundled example: a 4.5-minute explainer of NVIDIA's [Foundation4D](https://arxiv.org/abs/2610.30340) (CC BY 4.0), made end to end by this skill.
+All visuals are generated; every on-screen number traces back to a quote or table row in the paper.*
+
+<details>
+<summary>All 14 scenes (contact sheet)</summary>
+
+![Foundation4D explainer contact sheet](docs/example-contact.jpg)
+
+</details>
+
 - **Scenes:** Three.js (3D) + canvas (2D), timed to the narration; reusable templates plus custom scenes per paper
 - **Narration:** English by default (Kokoro, local, Apache-2.0); Korean and 30 other languages with `ko`, `ja`, ... (Supertonic 3, local, OpenRAIL-M). No API keys
 - **Cross-check:** every number and claim is tied to a quote or table row in the paper and checked mechanically (`scripts/check_claims.py`), then by an independent verifier subagent (`references/verification.md`)
