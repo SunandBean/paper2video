@@ -2,9 +2,9 @@
  "arxiv": "",
  "title": "",
  "lang": "en",
- "tts": { "engine": "kokoro", "voice": "af_heart", "speed": 1.0 },
+ "tts": {},
  "style": { "subtitleSize": 40 },
  "scenes": [
-  { "id": "title", "label": "", "s": [["Subtitle text shown on screen.", "Text sent to TTS (spell out numbers and acronyms)."]] }
+  { "id": "title", "label": "", "s": [["Subtitle text shown on screen.", "Text sent to TTS (spell out acronyms; numbers as digits or words both work and are checked)."]] }
  ]
 }

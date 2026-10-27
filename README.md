@@ -25,7 +25,7 @@ All visuals are generated; every on-screen number traces back to a quote or tabl
 
 ## Install
 
-Requires Claude Code, Node 18+, Python 3.10-3.13 and about 1 GB of disk.
+Requires Claude Code, git, Node 18+, Python 3.10-3.13 and about 1 GB of disk (Option B also uses curl). macOS or Linux; Korean videos on Linux need Noto Sans CJK.
 
 **Option A: plugin (recommended).** In any Claude Code session:
 

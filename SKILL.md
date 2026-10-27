@@ -33,7 +33,7 @@ Run the whole pipeline below with these defaults:
 |---|---|---|
 | Length | 4-5 min, 10-14 scenes | "3 min" |
 | Language / voice | **English**, Kokoro `af_heart` | `ko` / `Korean` / `한국어` → Korean (Supertonic 3 voice `F1`); another voice id (Kokoro `am_michael`..., Supertonic `F1`-`F5`, `M1`-`M5`) |
-| Verification | step 6 always runs in a **fresh-context subagent**, all 5 layers; equations and derivations (not machine-checkable) are checked by the verifier against paper.txt with the evidence written in VERIFY.md | n/a (never skipped) |
+| Verification | step 9 always runs in a **fresh-context subagent**, all 5 layers; equations and derivations (not machine-checkable) are checked by the verifier against paper.txt with the evidence written in VERIFY.md | n/a (never skipped) |
 | Fix loop | fix and re-verify up to 3 rounds, then stop with BLOCKED and the open items | n/a |
 | Templates | if the skill folder is a git clone you can edit, move any new scene that would work for other papers into `engine/templates.js`; otherwise (plugin install) keep it in the job's `scenes.js` and list it as a template candidate in the report | n/a |
 | Publishing | never upload or post anywhere; the MP4 is the end product | n/a |
@@ -66,19 +66,22 @@ into the tools folder, which survives updates. If the default `python3` is 3.14+
 | 2 | Read + outline | Read `paper.txt` fully. Fill `<jobs>/<id>/BRIEF.md` (license block first, outline that follows the paper's own logic, shot list) |
 | 3 | Script | `<jobs>/<id>/script.json`: scenes → sentences `[subtitle, tts_text]` |
 | 4 | Claims | `<jobs>/<id>/claims.json`: every factual statement and every on-screen number, with source; `used_in` lists every sentence (`<scene id>.<index>`) that says or shows it |
-| 5 | Mechanical check | `${CLAUDE_SKILL_DIR}/p2v check <id>` → must be **FAIL 0, WARN 0** |
-| 6 | Independent verification | Fresh-context verifier subagent per `references/verification.md` → `<jobs>/<id>/VERIFY.md`. Fix and loop until it passes |
-| 7 | Scenes | `<jobs>/<id>/scenes.js` (templates + custom). See `references/scene-authoring.md` |
-| 8 | Narration + timing | `${CLAUDE_SKILL_DIR}/p2v tts <id>` → `build/narration.wav`, `build/timing.json` |
-| 9 | Preview QA | `${CLAUDE_SKILL_DIR}/p2v preview <id>` → `build/preview_*.jpg`. Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry) |
+| 5 | Mechanical check (script) | `${CLAUDE_SKILL_DIR}/p2v check <id>` → must be **FAIL 0, WARN 0** for subtitles, narration and claims (scene numbers are checked again in step 8) |
+| 6 | Scenes | `<jobs>/<id>/scenes.js` (templates + custom), replacing the starter scene. See `references/scene-authoring.md` |
+| 7 | Narration + timing | `${CLAUDE_SKILL_DIR}/p2v tts <id>` → `build/narration.wav`, `build/timing.json` |
+| 8 | Preview QA + check | `${CLAUDE_SKILL_DIR}/p2v preview <id>` → `build/preview_*.jpg` and `build/onscreen.json` (every string drawn). Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry), then `${CLAUDE_SKILL_DIR}/p2v check <id>` again: FAIL 0, WARN 0 now includes numbers drawn by scenes |
+| 9 | Independent verification | Fresh-context verifier subagent per `references/verification.md`, all 5 layers, with the preview sheets → `<jobs>/<id>/VERIFY.md`. Fix and loop (re-run 5-8 for what changed) until it passes. Only a PASS goes to render |
 | 10 | Render | `${CLAUDE_SKILL_DIR}/p2v render <id>` → `<videos>/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `render <id> --manual`, open the URL in any browser) |
-| 11 | Final checks | Re-run step 5: it now also checks every string the render drew (`build/onscreen.json`), including numbers that templates draw from JS values. Must be FAIL 0, WARN 0. Watch `contact.jpg` |
+| 11 | Final checks | `${CLAUDE_SKILL_DIR}/p2v check <id>` once more (the render records every frame's text, so it sees more than the preview). Must be FAIL 0, WARN 0. Watch `contact.jpg` |
 | 12 | Report | Final report (below). If `local/*.md` exists in the skill folder, follow those personal add-on steps after this one |
 
-Re-runs: steps 8 to 11 are idempotent. Change `script.json` → re-run 5, 8, 9, 10.
+Re-runs: steps 7, 8, 10, 11 are idempotent. Change `script.json` → re-run 5, 7, 8, then re-verify the changed claims (9) and render.
 
 ## Hard rules
 - **License first.** `meta.json.figure_reuse` decides whether paper figures may appear. Default: draw everything yourself; never paste paper figures or dataset camera images unless the license allows it (`references/licensing.md`). No company logos.
+- **Spoken numbers count too.** Narration numbers are checked as digits and as English number words. Product or model names read aloud
+  (H100 as "H one hundred", SD3.5) need an `allow_numbers` entry with the reason. Leave `tts` in script.json empty unless the user
+  asked for a specific voice: the engine follows `lang` (Kokoro for `en`, Supertonic for others).
 - **No unsourced numbers.** Every number in subtitles or on-screen strings must be covered by `claims.json`. Rounded numbers must state the exact source value in the claim `text` (e.g. "141.72 → shown as 142").
 - **Keep the paper's conditions.** "Best" needs its qualifiers ("among compared methods", "after benchmark-specific fine-tuning", ablation setting, hardware).
 - **Label approximations and opinions on screen**, not only in the claims file (`derived` / `opinion` kinds need `on_screen_label`).

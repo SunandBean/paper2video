@@ -2,7 +2,8 @@
 
 The writer and the verifier must be different contexts. The agent that wrote the script does not
 grade it. Spawn a fresh subagent (ideally a different model) that sees only: `paper/paper.txt`,
-`paper/meta.json`, `script.json`, `claims.json`, the scene files, `build/VERIFY_auto.md`, and this file.
+`paper/meta.json`, `script.json`, `claims.json`, the scene files, `build/VERIFY_auto.md`, `build/preview_*.jpg`,
+`build/onscreen.json`, and this file. It runs after the scenes exist and the preview is made (SKILL.md step 9).
 
 ## Layer 1. Numbers and sentences (mechanical, `p2v check <id>` = `scripts/check_claims.py`)
 Required: **FAIL 0, WARN 0**.
