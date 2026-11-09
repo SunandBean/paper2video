@@ -72,6 +72,8 @@ p2v doctor                 # folders and what is installed
 p2v smoke [--ko]           # toolchain test, should end with ALL PASS
 p2v test                   # fast regression tests for the checker and the local server
 p2v run <arxiv link>       # unattended run through `claude -p` (for cron or another bot)
+p2v render <job> [--workers N] [--gpu auto|cpu]   # GPU (Metal on macOS, Vulkan on Linux) and parallel pages by default
+p2v gpus                   # Linux: list GPUs; pick one with --gpu-device <n> (or P2V_GPU_DEVICE)
 p2v help                   # fetch, check, tts, preview, render, collect, setup
 ```
 

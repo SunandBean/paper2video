@@ -85,6 +85,18 @@ await t('random escape attempts never leak (2000 paths)', async () => {
 });
 await t('listens on loopback only', async () => assert.equal(srv.address().address, '127.0.0.1'));
 
+const { gpuLaunch, isSoftware } = await import('../scripts/gpu.mjs');
+await t('gpu: cpu mode is SwiftShader, unknown modes are refused', async () => {
+  assert.ok(gpuLaunch('cpu').args.includes('--use-angle=swiftshader'));
+  assert.throws(() => gpuLaunch('cuda'), /unknown GPU mode/);
+  if (process.platform === 'darwin') assert.equal(gpuLaunch('auto').mode, 'metal');
+  else assert.throws(() => gpuLaunch('metal'), /macOS only/);
+});
+await t('gpu: software renderers are recognised', async () => {
+  for (const s of ['ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (LLVM 10.0.0)), SwiftShader driver)', 'ANGLE (Mesa, llvmpipe (LLVM 20.1.2 128 bits), OpenGL ES 3.2)', null]) assert.ok(isSoftware(s), String(s));
+  for (const s of ['ANGLE (Apple, ANGLE Metal Renderer: Apple M5 Pro, Unspecified Version)', 'ANGLE (NVIDIA, Vulkan 1.3.277 (NVIDIA GeForce RTX 4090 (0x00002684)), NVIDIA)']) assert.ok(!isSoftware(s), s);
+});
+
 srv.close();
 fs.rmSync(tmp, { recursive: true, force: true });
 console.log(failed ? `${failed} FAILED` : 'server tests: ALL PASS');
