@@ -97,6 +97,9 @@ def spoken_numbers(s):
         i = max(j, i + 1)
     return out
 
+# what may follow "Table N" in a caption: ':' or '.', or one non-word glyph such as '⋃︀' or '|' (not ',' ';' '(' or a word)
+CAPSEP = r'\s*(?::|\.(?:\s|$)|[^\w\s.,;:()\[\]])'
+
 def string_literals(js):
     js = re.sub(r'//[^\n]*', '', js)
     lits = re.findall(r"'((?:[^'\\\n]|\\.)*)'|`((?:[^`\\]|\\.)*)`|\"((?:[^\"\\\n]|\\.)*)\"", js)
@@ -136,7 +139,8 @@ def main():
             rows.append(('PASS' if ok else 'FAIL', cid, 'quote found' if ok else f'quote NOT found: "{c.get("quote", "")[:90]}"'))
         elif k == 'table':
             cap = norm(c.get('table', ''))
-            if not any(cap + sep in paper for sep in (':', '. ')):  # "Table 2:" (most styles) or "Table 2." (CVPR)
+            # "Table 2:" (most styles), "Table 2." (CVPR) or a glyph separator ("Table 2 ⋃︀ ...", some LaTeX classes)
+            if not re.search(re.escape(cap) + CAPSEP, paper):
                 rows.append(('FAIL', cid, f'caption "{c.get("table")}" not found')); continue
             row, vals = norm(c.get('row', '')), [norm(str(v)) for v in c.get('values', [])]
             if not row or not vals or not cap:
@@ -145,8 +149,8 @@ def main():
             # (captions sit above or below their table depending on the template)
             # every caption line (Arabic or Roman numbering, any repeat such as a list of tables) is a boundary;
             # each occurrence of the cited caption gets its own scope and any of them may hold the row
-            bounds = [i for i, l in enumerate(lines) if re.match(r'table [0-9ivxlc]+\s*[:.]', l)]
-            capl = [i for i, l in enumerate(lines) if l.startswith(cap + ':') or l.startswith(cap + '.')]
+            bounds = [i for i, l in enumerate(lines) if re.match(r'table [0-9ivxlc]+(?:\.[0-9]+)*' + CAPSEP, l)]
+            capl = [i for i, l in enumerate(lines) if re.match(re.escape(cap) + CAPSEP, l)]
             scopes = []
             for c0 in capl:
                 lo = max([i for i in bounds if i < c0], default=-1) + 1
