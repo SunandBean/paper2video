@@ -136,7 +136,9 @@ def main():
             rows.append(('PASS' if ok else 'FAIL', cid, 'quote found' if ok else f'quote NOT found: "{c.get("quote", "")[:90]}"'))
         elif k == 'table':
             cap = norm(c.get('table', ''))
-            if not any(cap + sep in paper for sep in (':', '. ')):  # "Table 2:" (most styles) or "Table 2." (CVPR)
+            # "Table 2:" (most styles), "Table 2." (CVPR) or "Table 2 Results ..." at a line start (no separator)
+            is_cap = lambda l: l.startswith(cap + ':') or l.startswith(cap + '.') or re.match(re.escape(cap) + r' [a-z]', l)
+            if not any(cap + sep in paper for sep in (':', '. ')) and not any(is_cap(l) for l in lines):
                 rows.append(('FAIL', cid, f'caption "{c.get("table")}" not found')); continue
             row, vals = norm(c.get('row', '')), [norm(str(v)) for v in c.get('values', [])]
             if not row or not vals or not cap:
@@ -145,8 +147,8 @@ def main():
             # (captions sit above or below their table depending on the template)
             # every caption line (Arabic or Roman numbering, any repeat such as a list of tables) is a boundary;
             # each occurrence of the cited caption gets its own scope and any of them may hold the row
-            bounds = [i for i, l in enumerate(lines) if re.match(r'table [0-9ivxlc]+\s*[:.]', l)]
-            capl = [i for i, l in enumerate(lines) if l.startswith(cap + ':') or l.startswith(cap + '.')]
+            bounds = [i for i, l in enumerate(lines) if re.match(r'table [0-9ivxlc]+(\s*[:.]| [a-z])', l)]
+            capl = [i for i, l in enumerate(lines) if is_cap(l)]
             scopes = []
             for c0 in capl:
                 lo = max([i for i in bounds if i < c0], default=-1) + 1
