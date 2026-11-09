@@ -24,6 +24,9 @@ export const rig = () => {               // custom 3D scene
   Sentence k's window runs from its start to the next sentence's start (or scene end).
 - Tie every visual beat to the sentence that talks about it. When the narration changes, timing follows.
 - `eo()` ease-out, `ease()` in-out, `seg(t, a, b)` clamp-normalize.
+- Every frame must be a pure function of `S` (time): set all state in `update`/`draw` from `S.t`/`S.P`, never
+  accumulate across frames (`x += dx`, counters, `Math.random()` per frame; seed with `rng(seed)` at build time).
+  `p2v render` draws frames in parallel pages, each starting mid-video, and `preview` jumps to arbitrary times.
 
 ## Building blocks (core.js)
 - 3D: `baseScene`, `persp`, `look`, `makeCar`, `rigFrusta`/`frustumAlpha` (6-camera rig), `makeFrustum`,

@@ -201,8 +201,9 @@ export function noisyTile(ctx, x, y, size, noise, seeds = [1], alpha = 1, { cell
 // Grouped vertical bars. groups: [{ label, sub }]; series: [{ name, color }];
 // values[g][s] = number (null to skip). min > 0 prints an "axis starts at" note.
 // highlight: series index drawn with value in bold; legend sits above the plot.
+// scaleNote replaces the "higher/lower is better" note when neither direction is "better" (e.g. an upper bound).
 export function groupBars({ heading = '', groups, series, values, min = 0, max, digits = 3, unit = '', lowerBetter = false,
-  sentence = 0, box = [100, 150, 1720, 700], highlight = -1, footnote = '', reveal = null }) {
+  sentence = 0, box = [100, 150, 1720, 700], highlight = -1, footnote = '', reveal = null, scaleNote = null }) {
   need(Array.isArray(groups) && groups.length && Array.isArray(series) && series.length, 'groupBars needs groups and series');
   need(Array.isArray(values) && values.length === groups.length && values.every(r => Array.isArray(r) && r.length === series.length),
     `groupBars values must be ${groups.length} rows x ${series.length} columns`);
@@ -215,7 +216,7 @@ export function groupBars({ heading = '', groups, series, values, min = 0, max, 
       if (a <= 0) return;
       panel(ctx, x, y, w, h, a);
       txt(ctx, heading, x + 36, y + 56, { size: 30, weight: 800, alpha: a, maxW: w * .55 });
-      txt(ctx, (lowerBetter ? 'lower is better' : 'higher is better') + (min ? `  ·  axis starts at ${min}` : ''), x + w - 36, y + 56, { size: 20, color: C.gray, align: 'right', alpha: a });
+      txt(ctx, (scaleNote ?? (lowerBetter ? 'lower is better' : 'higher is better')) + (min ? `  ·  axis starts at ${min}` : ''), x + w - 36, y + 56, { size: 20, color: C.gray, align: 'right', alpha: a });
       // legend
       let lx = x + 36;
       series.forEach((s, i) => {
@@ -234,7 +235,7 @@ export function groupBars({ heading = '', groups, series, values, min = 0, max, 
         series.forEach((s, si) => {
           const v = values[gi][si]; if (v == null) return;
           const rv = reveal ? reveal(S, gi, si) : 1;
-          const gr = eo(seg(p, .1 + gi * .12, .45 + gi * .12)) * rv, bh = Math.max(0, (v - min) / (hi - min)) * ph * gr, bx = gx0 + si * (bw + 8);
+          const st = Math.min(.12, .5 / groups.length), gr = eo(seg(p, .1 + gi * st, .45 + gi * st)) * rv, bh = Math.max(0, (v - min) / (hi - min)) * ph * gr, bx = gx0 + si * (bw + 8);
           rrect(ctx, bx, py + ph - bh, bw, bh, 6, s.color, si === highlight ? C.white : null, 2, a * (rv > 0 ? 1 : 0));
           txt(ctx, v.toFixed(digits) + unit, bx + bw / 2, py + ph - bh - 10, { size: bw < 60 ? 17 : 20, weight: si === highlight ? 800 : 600, align: 'center', color: si === highlight ? C.white : C.gray, alpha: a * clamp(gr * 3 - 2) });
         });
@@ -789,4 +790,100 @@ export function wosPath(x, y, dist, rnd, { eps = .01, maxSteps = 400 } = {}) {
     const th = 2 * Math.PI * rnd(); x += r * Math.cos(th); y += r * Math.sin(th);
   }
   return out;
+}
+
+// Signed values on one horizontal axis with the zero line marked (e.g. "method minus baseline" differences,
+// where the sign is the story). rowLabels: one lane per entry, top to bottom (e.g. ['SVC', 'GPC']).
+// points: [{ v, row, label, sub, color, digits, sentence, dx }] (dx shifts the text off the dot, e.g. away from the zero line): each fades in during its own sentence (default `sentence`);
+// values print with an explicit sign. arrows: [{ from, to, sentence }] point indexes, drawn after their sentence starts.
+// posLabel / negLabel name what each side of zero favours.
+export function dotAxis({ heading = '', points, arrows = [], min, max, ticks = [], tickDigits = 2, sentence = 0, rowLabels = [''],
+  box = [100, 300, 1720, 540], posLabel = '', negLabel = '', footnote = '' }) {
+  need(Array.isArray(points) && points.length && points.every(p => Number.isFinite(p.v)), 'dotAxis needs points with numeric v');
+  need(Number.isFinite(min) && Number.isFinite(max) && max > min, 'dotAxis needs min < max');
+  const [x, y, w, h] = box, ax0 = x + 170, ax1 = x + w - 60, gx = v => ax0 + (clamp(v, min, max) - min) / (max - min) * (ax1 - ax0);
+  const top = y + (heading ? 100 : 40), axisY = y + h - 80, lane = (axisY - top) / rowLabels.length;
+  const py = p => top + ((p.row ?? 0) + .62) * lane;
+  const sgn = (v, d) => (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v).toFixed(d);
+  return {
+    draw(ctx, S) {
+      const a = eo(seg(S.P(sentence), 0, .15));
+      if (a <= 0) return;
+      panel(ctx, x, y, w, h, a);
+      if (heading) txt(ctx, heading, x + 36, y + 56, { size: 28, weight: 800, alpha: a, maxW: w - 72 });
+      rowLabels.forEach((r, i) => txt(ctx, r, x + 36, top + (i + .62) * lane + 9, { size: 26, weight: 800, color: C.gray, alpha: a }));
+      rrect(ctx, ax0, axisY, ax1 - ax0, 3, 1, 'rgba(255,255,255,.35)', null, 0, a);
+      ticks.forEach(t => {
+        rrect(ctx, gx(t) - 1, axisY - 8, 2, 16, 1, 'rgba(255,255,255,.4)', null, 0, a);
+        txt(ctx, t === 0 ? '0' : sgn(t, tickDigits), gx(t), axisY + 38, { size: 19, color: C.gray, align: 'center', alpha: a });
+      });
+      if (min < 0 && max > 0) {
+        ctx.save(); ctx.globalAlpha = a * .7; ctx.strokeStyle = C.white; ctx.setLineDash([8, 8]); ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(gx(0), top - 10); ctx.lineTo(gx(0), axisY); ctx.stroke(); ctx.restore();
+      }
+      if (posLabel) txt(ctx, posLabel + '  →', ax1, axisY + 66, { size: 20, weight: 700, color: C.gray, align: 'right', alpha: a });
+      if (negLabel) txt(ctx, '←  ' + negLabel, ax0, axisY + 66, { size: 20, weight: 700, color: C.gray, alpha: a });
+      arrows.forEach(ar => {
+        const p0 = points[ar.from], p1 = points[ar.to], g = eo(seg(S.P(ar.sentence ?? sentence), .1, .6));
+        const dir = Math.sign(gx(p1.v) - gx(p0.v)) || 1;
+        arrow(ctx, gx(p0.v) + dir * 20, py(p0), gx(p1.v) - dir * 20, py(p1), 'rgba(255,255,255,.55)', 3, g, a);
+      });
+      points.forEach(p => {
+        const al = a * eo(seg(S.P(p.sentence ?? sentence), 0, .2)), X = gx(p.v), Y = py(p), col = p.color || C.green;
+        if (al <= 0) return;
+        ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = col; ctx.beginPath(); ctx.arc(X, Y, 13, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+        const lx = clamp(X + (p.dx || 0), ax0 + 120, ax1 - 120);
+        txt(ctx, sgn(p.v, p.digits ?? 3), lx, Y - 24, { size: 28, weight: 800, align: 'center', alpha: al });
+        if (p.label) txt(ctx, p.label, lx, Y - 60, { size: 20, weight: 700, color: col, align: 'center', alpha: al, maxW: 380 });
+        if (p.sub) txt(ctx, p.sub, lx, Y + 42, { size: 18, color: C.gray, align: 'center', alpha: al, maxW: 380 });
+      });
+      if (footnote) txt(ctx, footnote, x + 36, y + h - 14, { size: 18, color: C.gray, alpha: a, maxW: w - 72 });
+    }
+  };
+}
+
+// Rounded box with a centered label and optional gray sub-line (pipeline diagrams). Draw call, not a scene.
+export function labelBox(ctx, x, y, w, h, label, color, a, { size = 24, sub = '', fill = 'rgba(14,20,28,.92)' } = {}) {
+  if (a <= 0) return;
+  rrect(ctx, x, y, w, h, 12, fill, color, 2.5, a);
+  txt(ctx, label, x + w / 2, y + (sub ? h / 2 - 2 : h / 2 + size * .36), { size, weight: 800, align: 'center', color, alpha: a, maxW: w - 20 });
+  if (sub) txt(ctx, sub, x + w / 2, y + h / 2 + 26, { size: 18, align: 'center', color: C.gray, alpha: a, maxW: w - 20 });
+}
+
+// Cartoon tabletop camera frame for robot-manipulation papers (a drawing, not a dataset image):
+// table, a cup and a box, and an effector at (u, v) in 0..1 of the tile.
+// eff: 'hand' (human), 'gripper' (robot), 'sim' (flat simulator look, gripper); tint shifts the background hue.
+export function tabletopFrame(ctx, x, y, w, h, a, { eff = 'gripper', u = .5, v = .45, tint = 0, border = 'rgba(255,255,255,.35)', objects = true } = {}) {
+  if (a <= 0) return;
+  const s = h / 160, sim = eff === 'sim';
+  ctx.save(); ctx.globalAlpha = a;
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, 8); ctx.clip();
+  ctx.fillStyle = sim ? '#2b4057' : `hsl(${210 + tint}, 22%, 17%)`; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = sim ? '#8a96a3' : `hsl(${28 + tint * .3}, 28%, 30%)`; ctx.fillRect(x, y + h * .58, w, h * .42);
+  if (sim) {
+    ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) { ctx.beginPath(); ctx.moveTo(x + i * w / 8, y + h * .58); ctx.lineTo(x + i * w / 8, y + h); ctx.stroke(); }
+  }
+  if (objects) {
+    const cx = x + w * .28, cy = y + h * .66;                                   // cup
+    ctx.fillStyle = sim ? '#e05d5d' : '#d9e2ea'; ctx.fillRect(cx - 14 * s, cy - 30 * s, 28 * s, 30 * s);
+    ctx.beginPath(); ctx.ellipse(cx, cy - 30 * s, 14 * s, 4 * s, 0, 0, 7); ctx.fill();
+    ctx.fillStyle = sim ? '#5d9de0' : '#c98a3c'; ctx.fillRect(x + w * .7, y + h * .6, 40 * s, 26 * s);   // box
+  }
+  const ex = x + u * w, ey = y + v * h;
+  if (eff === 'hand') {
+    ctx.strokeStyle = '#d7a77f'; ctx.lineCap = 'round'; ctx.lineWidth = 16 * s;
+    ctx.beginPath(); ctx.moveTo(ex + w * .22, y + h + 10); ctx.lineTo(ex + 4 * s, ey + 10 * s); ctx.stroke();
+    ctx.fillStyle = '#e2b48c'; ctx.beginPath(); ctx.ellipse(ex, ey, 15 * s, 12 * s, -.5, 0, 7); ctx.fill();
+    ctx.lineWidth = 5 * s; ctx.strokeStyle = '#e2b48c';
+    for (let k = 0; k < 4; k++) { const an = -2.3 + k * .38; ctx.beginPath(); ctx.moveTo(ex, ey); ctx.lineTo(ex + Math.cos(an) * 26 * s, ey + Math.sin(an) * 26 * s); ctx.stroke(); }
+  } else {
+    ctx.strokeStyle = sim ? '#cfd8e3' : '#aeb8c4'; ctx.lineCap = 'round'; ctx.lineWidth = 12 * s;
+    ctx.beginPath(); ctx.moveTo(x + w * .92, y - 10); ctx.lineTo(ex + 18 * s, ey - 26 * s); ctx.lineTo(ex, ey - 12 * s); ctx.stroke();
+    ctx.lineWidth = 5 * s;
+    ctx.beginPath(); ctx.moveTo(ex - 12 * s, ey - 12 * s); ctx.lineTo(ex + 12 * s, ey - 12 * s);
+    ctx.moveTo(ex - 12 * s, ey - 12 * s); ctx.lineTo(ex - 12 * s, ey + 10 * s); ctx.moveTo(ex + 12 * s, ey - 12 * s); ctx.lineTo(ex + 12 * s, ey + 10 * s); ctx.stroke();
+  }
+  ctx.restore();
+  rrect(ctx, x, y, w, h, 8, null, border, 2, a);
 }

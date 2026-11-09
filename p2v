@@ -7,7 +7,8 @@
 #   p2v check <job>           mechanical claims check (must end FAIL 0, WARN 0)
 #   p2v tts <job> [opts]      narration + timing (opts: --engine, --voice, --speed)
 #   p2v preview <job>         contact sheets at every sentence midpoint
-#   p2v render <job> [--manual|--allow-stale]
+#   p2v render <job> [--manual|--allow-stale] [--workers N] [--gpu auto|cpu|metal|vulkan|egl] [--gpu-device D]
+#   p2v gpus                  GPUs the renderer can use (pick one with --gpu-device or P2V_GPU_DEVICE)
 #   p2v collect               re-link every finished video into the videos folder
 #   p2v smoke [--ko]          end-to-end toolchain test
 #   p2v test                  fast regression tests (no tools or network needed)
@@ -159,9 +160,10 @@ case "$CMD" in
   preview) need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$1" --preview ;;
   render)  need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$@" ;;
   collect) exec node "$ROOT/scripts/collect.mjs" ;;
+  gpus)    exec node -e 'import(process.argv[1]).then(m => console.log(m.formatGpus()))' "$ROOT/scripts/gpu.mjs" ;;
   smoke)   smoke "${1:-}" ;;
   test)    "$SYSPY" "$ROOT/tests/test_python.py" && node "$ROOT/tests/test_server.mjs" ;;
   run)     run_unattended "$@" ;;
-  help|-h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//' ;;
+  help|-h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
   *) echo "p2v: unknown command '$CMD' (try: p2v help)"; exit 2 ;;
 esac

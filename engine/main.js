@@ -84,23 +84,35 @@ export function renderAt(T) {
   const lab = LABELS[sc.id];
   if (lab) chip(ctx, lab, 60, 92, '#ffffff', eo(seg(t, .2, .7)), 28);
   subtitle(sc, t);
-  rrect(ctx, 0, H - 6, W * T / TOTAL, 6, 0, C.green, null, 0, .9);
+  rrect(ctx, 0, H - 6, Math.round(W * T / TOTAL), 6, 0, C.green, null, 0, .9);   // whole pixels: an anti-aliased tip can differ by render order
   const fade = Math.max(i === 0 ? 1 - seg(t, 0, .6) : 1 - seg(t, 0, .35), seg(t, sc.dur - .3, sc.dur));
   if (fade > 0) { ctx.save(); ctx.globalAlpha = fade; ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
 }
 window.renderAt = renderAt;
 
 // Frame sink: POST each JPEG frame to the job server (scripts/serve.mjs).
-window.capture = async function (f0, f1, q = 0.9) {
-  for (let f = f0; f < f1; f++) {
-    renderAt(f / FPS);
+// toBlob snapshots the canvas when called, so the next frame renders while up to `depth` earlier ones encode and upload.
+window.capture = async function (f0, f1, q = 0.9, depth = 4) {
+  const send = async f => {
     const blob = await new Promise(r => out.toBlob(r, 'image/jpeg', q));
     if (!blob) throw new Error(`frame ${f}: canvas.toBlob returned nothing`);
     const res = await fetch(`/frame/${encodeURIComponent(JOB)}/${f}`, { method: 'POST', body: blob });
     if (!res.ok) throw new Error(`frame ${f}: server answered ${res.status}`);
+  };
+  const busy = new Set();
+  for (let f = f0; f < f1; f++) {
+    renderAt(f / FPS);
+    const p = send(f).then(() => busy.delete(p));
+    busy.add(p);
+    if (busy.size >= depth) await Promise.race(busy);
     window.__done = f;
   }
+  await Promise.all(busy);
   return f1;
+};
+window.gpuInfo = () => {
+  const gl = glc.getContext('webgl2') || glc.getContext('webgl'), ext = gl && gl.getExtension('WEBGL_debug_renderer_info');
+  return gl ? (ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)) : null;
 };
 // Contact sheet of given times (data URL), for quick visual QA.
 window.sheet = (Ts, cols = 2, w = 960) => {
