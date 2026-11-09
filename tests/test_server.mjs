@@ -85,6 +85,15 @@ await t('random escape attempts never leak (2000 paths)', async () => {
 });
 await t('listens on loopback only', async () => assert.equal(srv.address().address, '127.0.0.1'));
 
+await t('engine files parse as ES modules (the browser is their only other check)', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const dir = path.join(path.dirname(new URL(import.meta.url).pathname), '..', 'engine');
+  for (const f of fs.readdirSync(dir).filter(f => f.endsWith('.js'))) {
+    const r = spawnSync(process.execPath, ['--input-type=module', '--check'], { input: fs.readFileSync(path.join(dir, f)) });
+    assert.equal(r.status, 0, `${f}: ${String(r.stderr).split('\n').slice(0, 5).join(' ')}`);
+  }
+});
+
 const { gpuLaunch, isSoftware } = await import('../scripts/gpu.mjs');
 await t('gpu: cpu mode is SwiftShader, unknown modes are refused', async () => {
   assert.ok(gpuLaunch('cpu').args.includes('--use-angle=swiftshader'));
