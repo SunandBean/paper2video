@@ -25,7 +25,7 @@ All visuals are generated; every on-screen number traces back to a quote or tabl
 
 ## Install
 
-Tested so far with Claude Opus 5.5 at medium effort; other models and effort levels have not been tried yet.
+I tried several models while building it, but I wasn't happy with most of the results, so I only run it with Claude Opus 5.5 at medium effort.
 
 Requires Claude Code, git, Node 18+, Python 3.10-3.13 and about 1 GB of disk (Option B also uses curl). macOS or Linux; Korean videos on Linux need Noto Sans CJK.
 
