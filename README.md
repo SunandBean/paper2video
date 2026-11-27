@@ -91,3 +91,5 @@ License: MIT (see LICENSE). The example job includes text from the Foundation4D 
 
 Third-party: three.js (MIT), ffmpeg-static (downloads a GPL-3.0 FFmpeg build at install), kokoro-onnx (MIT) and Kokoro-82M weights (Apache-2.0), supertonic (MIT code, Supertonic 3 weights under OpenRAIL-M), Playwright (Apache-2.0).
 Korean subtitles need a Korean font (built into macOS; on Linux install Noto Sans CJK).
+
+If paper2video helped you, a ⭐ on this repo or subscribing to [@paper2videoai](https://www.youtube.com/@paper2videoai) means a lot.
