@@ -70,11 +70,15 @@ Everything the skill does is also a terminal command, `p2v` in the skill folder:
 ```bash
 p2v doctor                 # folders and what is installed
 p2v smoke [--ko]           # toolchain test, should end with ALL PASS
-p2v test                   # fast regression tests for the checker and the local server
+p2v test                   # fast regression tests for the checker, the local server, frames and clean
 p2v run <arxiv link>       # unattended run through `claude -p` (for cron or another bot)
 p2v render <job> [--workers N] [--gpu auto|cpu]   # GPU (Metal on macOS, Vulkan on Linux) and parallel pages by default
+                           # build/frames is deleted once the MP4 checks out; --keep-frames keeps it
+p2v frames <job> --at 42.5         # still from the MP4 -> jobs/<job>/build/frames_extract/
+p2v frames <job> --scene 3 --exact # lossless PNG re-rendered from the scenes (also --every <sec>, --all, --out <dir>)
+p2v clean [--yes]          # list leftover build/frames and their size; --yes deletes them
 p2v gpus                   # Linux: list GPUs; pick one with --gpu-device <n> (or P2V_GPU_DEVICE)
-p2v help                   # fetch, check, tts, preview, render, collect, setup
+p2v help                   # every command and option (fetch, check, tts, preview, collect, setup, paths, ...)
 ```
 
 ## What's inside
