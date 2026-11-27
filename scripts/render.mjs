@@ -3,6 +3,7 @@
 //   ./p2v render <job>     (= node scripts/render.mjs <job>)            full render (frames -> mp4) via headless Chromium (Playwright)
 //   node scripts/render.mjs <job> --preview  contact sheets at every sentence midpoint -> build/preview_*.jpg
 //   node scripts/render.mjs <job> --manual   start server and print a capture URL to open in any browser
+//   --keep-frames (P2V_KEEP_FRAMES=1)        keep build/frames after the MP4 is written (deleted by default)
 // Options (or env): --workers N (P2V_WORKERS; default: auto), --gpu auto|cpu|metal|vulkan|egl (P2V_GPU),
 //   --gpu-device <n|/dev/dri/renderD129|pci|vid:did> (P2V_GPU_DEVICE, Linux). Device list: ./p2v gpus
 // Frames render in parallel pages (scenes are a pure function of time); each page takes the next chunk of frames.
@@ -19,6 +20,7 @@ import { gpuLaunch, CPU_LAUNCH, isSoftware } from './gpu.mjs';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const job = process.argv[2];
 const preview = process.argv.includes('--preview');
+if (process.argv.includes('--keep-frames')) process.env.P2V_KEEP_FRAMES = '1';
 const manual = process.argv.includes('--manual');
 const port = parseInt(process.env.PORT || '0', 10);  // 0 = any free port
 const opt = (name, env) => { const i = process.argv.indexOf(name); return i > 0 ? process.argv[i + 1] : process.env[env]; };

@@ -80,6 +80,10 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const contact = path.join(b, 'contact.jpg');
   run(ffmpeg, ['-y', '-loglevel', 'error', '-i', output, '-vf', `select='not(mod(n+${Math.floor(step / 2)}\\,${step}))',scale=480:-1,tile=4x4`, '-fps_mode', 'vfr', '-frames:v', '1', contact]);
   const shortcut = publish(root, job, output);
+  // The JPEG frames are only the input to this mux (a full render deletes and redraws them first) and are ~99% of
+  // a job's disk. Reviews use preview_*.jpg, contact.jpg and onscreen.json, so drop the frames once the MP4 is real.
+  // Keep them with `p2v render <id> --keep-frames` or P2V_KEEP_FRAMES=1.
+  if (!process.env.P2V_KEEP_FRAMES && fs.statSync(output).size > 0) fs.rmSync(path.join(b, 'frames'), { recursive: true, force: true });
   return { output, contact, shortcut };
 }
 

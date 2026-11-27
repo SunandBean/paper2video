@@ -91,7 +91,7 @@ Re-runs: steps 7, 8, 10, 11 are idempotent. Change `script.json` → re-run 5, 7
 
 ## Files
 - `engine/` timeline player (`main.js`), 3D/2D primitives (`core.js`), reusable templates (`templates.js`)
-- `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg)
+- `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg; `build/frames` is deleted after a good mux, `--keep-frames` keeps it)
 - `p2v` single entry point (setup, doctor, fetch, check, tts, preview, render, collect, smoke, run); `scripts/p2v_paths.py` decides the folders
 - `templates/job/` skeleton copied into new jobs
 - `jobs/2610.30340/` complete worked example (copied into the jobs folder on first use) (Foundation4D, 14 scenes, 66 claims, 4.6 min)
