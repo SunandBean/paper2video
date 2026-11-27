@@ -146,6 +146,6 @@ try { r = mux(ROOT, job, resolveFfmpeg(ROOT), total); }
 catch (e) { srv.close(); console.error(`\n[error] ${job}: ${e.message}`); process.exit(1); }
 const tMux = (Date.now() - t1) / 1000;
 console.log(`\n[done] ${job} -> ${r.shortcut}\ncapture ${tCap.toFixed(1)} s (${(total / tCap).toFixed(1)} fps, ${workers} workers, ${launch.mode})  mux ${tMux.toFixed(1)} s`);
-console.log(JSON.stringify({ state: 'done', video: r.shortcut, output: r.output, contact: r.contact, frames: total }, null, 1));
+console.log(JSON.stringify({ state: 'done', video: r.shortcut, output: r.output, contact: r.contact, frames: total, frames_deleted: r.framesDeleted }, null, 1));
 srv.close();
 process.exit(0);

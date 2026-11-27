@@ -60,7 +60,7 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
           res.writeHead(200); res.end('ok');
           try {
             const r = mux(ROOT, job, ffmpeg, expected);
-            status[job] = { ...status[job], state: 'done', video: r.shortcut, output: r.output, contact: r.contact };
+            status[job] = { ...status[job], state: 'done', video: r.shortcut, output: r.output, contact: r.contact, framesDeleted: r.framesDeleted };
             console.log(`[done] ${job} -> ${r.shortcut}`);
           } catch (e) {
             status[job] = { ...status[job], state: 'error', error: String(e.message || e) };

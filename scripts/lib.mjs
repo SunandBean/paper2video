@@ -42,6 +42,9 @@ export function run(bin, args) {
 }
 
 
+// --keep-frames / P2V_KEEP_FRAMES=1 (0, false, no or empty mean "do not keep").
+export const keepFrames = () => !/^(|0|false|no)$/i.test(process.env.P2V_KEEP_FRAMES || '');
+
 // Duration of a PCM WAV from its header (fmt byte rate, data chunk size).
 export function wavSeconds(file) {
   const b = fs.readFileSync(file); let i = 12, rate = 0;
@@ -52,6 +55,25 @@ export function wavSeconds(file) {
     i += 8 + size + (size & 1);
   }
   return 0;
+}
+
+// Container duration in seconds, read from the `Duration:` line `ffmpeg -i` prints (ffmpeg-static ships no ffprobe).
+// null when ffmpeg cannot read the file or reports no duration.
+export function mediaSeconds(file, ffmpeg) {
+  const r = spawnSync(ffmpeg, ['-hide_banner', '-i', file], { encoding: 'utf8' });
+  const m = /Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)/.exec(r.stderr || '');
+  return m ? Number(m[1]) * 3600 + Number(m[2]) * 60 + parseFloat(m[3]) : null;
+}
+
+// An MP4 may stand in for its JPEG frames only if its length matches the frame count (30 fps) within this many seconds.
+export const FRAMES_TOLERANCE = 0.2;
+// null if the MP4 covers `frames` frames, otherwise why not (used before build/frames is deleted).
+export function mp4MismatchReason(file, frames, ffmpeg) {
+  if (!fs.existsSync(file) || fs.statSync(file).size === 0) return 'no MP4 or empty MP4';
+  const sec = mediaSeconds(file, ffmpeg), want = frames / 30;
+  if (sec === null) return 'ffmpeg reports no duration for the MP4';
+  if (Math.abs(sec - want) > FRAMES_TOLERANCE) return `MP4 is ${sec.toFixed(2)} s but ${frames} frames are ${want.toFixed(2)} s`;
+  return null;
 }
 
 export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
@@ -82,9 +104,15 @@ export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const shortcut = publish(root, job, output);
   // The JPEG frames are only the input to this mux (a full render deletes and redraws them first) and are ~99% of
   // a job's disk. Reviews use preview_*.jpg, contact.jpg and onscreen.json, so drop the frames once the MP4 is real.
-  // Keep them with `p2v render <id> --keep-frames` or P2V_KEEP_FRAMES=1.
-  if (!process.env.P2V_KEEP_FRAMES && fs.statSync(output).size > 0) fs.rmSync(path.join(b, 'frames'), { recursive: true, force: true });
-  return { output, contact, shortcut };
+  // Keep them with `p2v render <id> --keep-frames` or P2V_KEEP_FRAMES=1. Before deleting, measure the MP4: if its
+  // length does not match the frame count, keep the frames (they are the only lossless copy) and say so.
+  let framesDeleted = false;
+  if (!keepFrames()) {
+    const why = mp4MismatchReason(output, want, ffmpeg);
+    if (why) console.warn(`[warn] ${job}: kept build/frames: ${why} (tolerance ${FRAMES_TOLERANCE} s). Check the video; once it is good, remove the frames with: p2v clean ${job} --yes`);
+    else { fs.rmSync(path.join(b, 'frames'), { recursive: true, force: true }); framesDeleted = true; }
+  }
+  return { output, contact, shortcut, framesDeleted };
 }
 
 // Final videos land in one flat folder: videosDir() ($P2V_OUT or <work>/videos/), named "<id>_<Short-Title>[_ko].mp4".
