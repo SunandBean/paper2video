@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression tests for scripts/serve.mjs and the mux frame check (no browser, no ffmpeg run).
+// Regression tests for scripts/serve.mjs and the mux frame checks (no browser; the ffmpeg test is skipped without ffmpeg).
 //   node tests/test_server.mjs        (or: ./p2v test)
 import fs from 'node:fs';
 import os from 'node:os';
@@ -82,6 +82,23 @@ await t('random escape attempts never leak (2000 paths)', async () => {
     assert.ok(r.status !== 500, `500 for ${p}`);
     assert.ok(!(await r.text()).includes('SECRET'), `leak for ${p}`);
   }
+});
+await t('mux drops build/frames after a good MP4 (skipped without ffmpeg)', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const ff = process.env.FFMPEG;
+  if (spawnSync(ff, ['-version']).status !== 0) return;
+  const b = path.join(jobs, 'j2', 'build'), fr = path.join(b, 'frames');
+  fs.mkdirSync(fr, { recursive: true });
+  process.env.P2V_OUT = path.join(tmp, 'videos');
+  const mk = () => spawnSync(ff, ['-y', '-loglevel', 'error', '-f', 'lavfi', '-i', 'color=c=black:s=64x64', '-frames:v', '20', '-start_number', '0', path.join(fr, '%05d.jpg')]);
+  mk();
+  process.env.P2V_KEEP_FRAMES = '1';
+  mux(path.resolve('.'), 'j2', ff, 20);
+  assert.ok(fs.existsSync(path.join(fr, '00000.jpg')), 'P2V_KEEP_FRAMES keeps frames');
+  delete process.env.P2V_KEEP_FRAMES;
+  const r = mux(path.resolve('.'), 'j2', ff, 20);
+  assert.ok(fs.statSync(r.output).size > 0 && fs.existsSync(r.contact));
+  assert.ok(!fs.existsSync(fr), 'frames removed after mux');
 });
 await t('listens on loopback only', async () => assert.equal(srv.address().address, '127.0.0.1'));
 

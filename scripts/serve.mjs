@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveFfmpeg, mux, jobsDir, toolsDir } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary', '.ttf': 'font/ttf' };
 const status = {};
 const JOB_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;   // same rule as p2v
 const inside = (base, p) => p === base || p.startsWith(base + path.sep);
@@ -60,7 +60,7 @@ export function startServer(port = 8765, { onDone, onListen } = {}) {
           res.writeHead(200); res.end('ok');
           try {
             const r = mux(ROOT, job, ffmpeg, expected);
-            status[job] = { ...status[job], state: 'done', video: r.shortcut, output: r.output, contact: r.contact };
+            status[job] = { ...status[job], state: 'done', video: r.shortcut, output: r.output, contact: r.contact, framesDeleted: r.framesDeleted };
             console.log(`[done] ${job} -> ${r.shortcut}`);
           } catch (e) {
             status[job] = { ...status[job], state: 'error', error: String(e.message || e) };

@@ -72,7 +72,7 @@ into the tools folder, which survives updates. If the default `python3` is 3.14+
 | 8 | Preview QA + check | `${CLAUDE_SKILL_DIR}/p2v preview <id>` → `build/preview_*.jpg` and `build/onscreen.json` (every string drawn). Look at every sheet (overflow, overlap, blank, legibility, camera inside geometry), then `${CLAUDE_SKILL_DIR}/p2v check <id>` again: FAIL 0, WARN 0 now includes numbers drawn by scenes |
 | 9 | Independent verification | Fresh-context verifier subagent per `references/verification.md`, all 5 layers, with the preview sheets → `<jobs>/<id>/VERIFY.md`. Fix and loop (re-run 5-8 for what changed) until it passes. Only a PASS goes to render |
 | 10 | Render | `${CLAUDE_SKILL_DIR}/p2v render <id>` → `<videos>/<id>_<Short-Title>[_ko].mp4` (shortcut to `build/<id>.mp4`) + `build/contact.jpg` (no Playwright: `render <id> --manual`, open the URL in any browser) |
-| 11 | Final checks | `${CLAUDE_SKILL_DIR}/p2v check <id>` once more (the render records every frame's text, so it sees more than the preview). Must be FAIL 0, WARN 0. Watch `contact.jpg` |
+| 11 | Final checks | `${CLAUDE_SKILL_DIR}/p2v check <id>` once more (the render records every frame's text, so it sees more than the preview). Must be FAIL 0, WARN 0. Watch `contact.jpg`; for a closer look at one moment, `${CLAUDE_SKILL_DIR}/p2v frames <id> --at <sec>` (or `--scene <n>`) → `build/frames_extract/` |
 | 12 | Report | Final report (below). If `local/*.md` exists in the skill folder, follow those personal add-on steps after this one |
 
 Re-runs: steps 7, 8, 10, 11 are idempotent. Change `script.json` → re-run 5, 7, 8, then re-verify the changed claims (9) and render.
@@ -91,8 +91,14 @@ Re-runs: steps 7, 8, 10, 11 are idempotent. Change `script.json` → re-run 5, 7
 
 ## Files
 - `engine/` timeline player (`main.js`), 3D/2D primitives (`core.js`), reusable templates (`templates.js`)
-- `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg)
-- `p2v` single entry point (setup, doctor, fetch, check, tts, preview, render, collect, smoke, run); `scripts/p2v_paths.py` decides the folders
+- `scripts/` fetch, tts, check_claims, serve/render (frames → MP4 via ffmpeg), frames (stills), clean
+- `p2v` single entry point (setup, doctor, fetch, check, tts, preview, render, frames, clean, gpus, collect, smoke, test, run, paths; `p2v help` lists the options); `scripts/p2v_paths.py` decides the folders
+- `build/frames` (the JPEG frames, ~1.3 GB for 5 min) is deleted after the mux once the MP4's length matches the frame count (±0.2 s);
+  otherwise it is kept with a warning. `p2v render <id> --keep-frames` keeps it; `p2v clean` lists leftovers and `p2v clean --yes` deletes them
+  (never for a job with no MP4, changed in the last 24 h, or whose MP4 length does not match).
+- Stills after the frames are gone: `p2v frames <id> --at <sec>[,<sec>...] | --scene <n|id> | --every <sec> | --all` decodes them from the MP4
+  (fast, lossy); add `--exact` to re-render them from the current `scenes.js` as lossless PNG. Output: `build/frames_extract/` (or `--out <dir>`),
+  which no cleanup touches
 - `templates/job/` skeleton copied into new jobs
 - `jobs/2610.30340/` complete worked example (copied into the jobs folder on first use) (Foundation4D, 14 scenes, 66 claims, 4.6 min)
 - `jobs/_smoke/` and `jobs/_smoke_ko/` short template-only jobs for testing the toolchain (English / Korean)

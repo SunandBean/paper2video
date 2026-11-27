@@ -1,7 +1,17 @@
 import * as THREE from '/node_modules/three/build/three.module.js';
 export { THREE };
 export const W = 1920, H = 1080, FPS = 30;
-export const FONT = '"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif';
+// Latin text uses the bundled Liberation Sans (engine/fonts, the Arial-metric font Linux already used) so every machine draws identical glyphs and widths.
+// Hangul and other scripts Liberation lacks fall through to the system fonts after it.
+export const FONT = '"P2V Sans","Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif';
+if (typeof document !== 'undefined' && document.fonts) {
+  for (const [weight, file] of [['400', 'LiberationSans-Regular.ttf'], ['700', 'LiberationSans-Bold.ttf']]) {
+    try {
+      const face = new FontFace('P2V Sans', `url(/engine/fonts/${file})`, { weight });
+      await face.load(); document.fonts.add(face);
+    } catch (e) { console.warn('bundled font failed, using system fonts:', file, e); }
+  }
+}
 export const C = {
   bg: '#0b0f14', green: '#76b900', cyan: '#3fd0ff', orange: '#ff9f43', pink: '#ff5c8a',
   purple: '#a78bfa', yellow: '#ffd166', gray: '#8892a0', white: '#f2f5f8', red: '#ff5252', dim: '#3a4452'
