@@ -76,6 +76,29 @@ export function mp4MismatchReason(file, frames, ffmpeg) {
   return null;
 }
 
+// "0,15,30-45" -> sorted unique frame numbers [0, 15, 30, 31, ..., 45]. Throws on anything else.
+export function parseFrameSpec(spec) {
+  const out = new Set();
+  for (const part of String(spec ?? '').split(',').map(s => s.trim()).filter(Boolean)) {
+    const m = /^(\d+)(?:-(\d+))?$/.exec(part);
+    if (!m) throw new Error(`bad frame spec "${part}" (use e.g. 0,15,30-45)`);
+    const a = Number(m[1]), b = m[2] === undefined ? a : Number(m[2]);
+    if (b < a) throw new Error(`bad frame range "${part}"`);
+    for (let k = a; k <= b; k++) out.add(k);
+  }
+  if (!out.size) throw new Error('empty frame spec');
+  return [...out].sort((x, y) => x - y);
+}
+// Inverse of parseFrameSpec: [0, 15, 30, 31, 32] -> "0,15,30-32".
+export function formatFrameSpec(frames) {
+  const s = [...new Set(frames)].sort((x, y) => x - y), parts = [];
+  for (let i = 0; i < s.length; i++) {
+    let j = i; while (j + 1 < s.length && s[j + 1] === s[j] + 1) j++;
+    parts.push(j > i ? `${s[i]}-${s[j]}` : String(s[i])); i = j;
+  }
+  return parts.join(',');
+}
+
 export function mux(root, job, ffmpeg = resolveFfmpeg(root), expected = 0) {
   const b = path.join(jobsDir(root), job, 'build');
   // ffmpeg's image sequence stops silently at the first gap, so check that every frame arrived.

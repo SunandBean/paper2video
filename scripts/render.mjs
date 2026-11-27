@@ -4,6 +4,8 @@
 //   node scripts/render.mjs <job> --preview  contact sheets at every sentence midpoint -> build/preview_*.jpg
 //   node scripts/render.mjs <job> --manual   start server and print a capture URL to open in any browser
 //   --keep-frames (P2V_KEEP_FRAMES=1)        keep build/frames after the MP4 is written (deleted by default)
+//   node scripts/render.mjs <job> --frames 0,450,900-930 --out <dir>
+//                                            re-render only these frames as lossless PNG (no MP4; used by p2v frames --exact)
 // Options (or env): --workers N (P2V_WORKERS; default: auto), --gpu auto|cpu|metal|vulkan|egl (P2V_GPU),
 //   --gpu-device <n|/dev/dri/renderD129|pci|vid:did> (P2V_GPU_DEVICE, Linux). Device list: ./p2v gpus
 // Frames render in parallel pages (scenes are a pure function of time); each page takes the next chunk of frames.
@@ -14,7 +16,7 @@ import { fileURLToPath } from 'node:url';
 import { startServer } from './serve.mjs';
 import { pathToFileURL } from 'node:url';
 import os from 'node:os';
-import { jobsDir, toolsRequire, mux, resolveFfmpeg } from './lib.mjs';
+import { jobsDir, toolsRequire, mux, resolveFfmpeg, parseFrameSpec } from './lib.mjs';
 import { gpuLaunch, CPU_LAUNCH, isSoftware } from './gpu.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -27,8 +29,15 @@ const opt = (name, env) => { const i = process.argv.indexOf(name); return i > 0 
 const WORKERS_OPT = opt('--workers', 'P2V_WORKERS') || 'auto';
 const GPU_MODE = opt('--gpu', 'P2V_GPU') || 'auto', GPU_DEVICE = opt('--gpu-device', 'P2V_GPU_DEVICE') || '';
 const Q = parseFloat(opt('--quality', 'P2V_JPEG_Q') || '0.9');
-if (!job) { console.error('usage: node scripts/render.mjs <job> [--preview|--manual]'); process.exit(2); }
+const FRAMES_SPEC = opt('--frames'), FRAMES_OUT = opt('--out');
+if (!job) { console.error('usage: node scripts/render.mjs <job> [--preview|--manual|--frames SPEC --out DIR] [--keep-frames] [--allow-stale] [--workers N] [--gpu MODE] [--gpu-device D]'); process.exit(2); }
 if (!/^[A-Za-z0-9_][A-Za-z0-9_.-]*$/.test(job)) { console.error(`not a job id: ${job}`); process.exit(2); }
+let exactFrames = null;
+if (FRAMES_SPEC !== undefined || FRAMES_OUT !== undefined) {
+  if (!FRAMES_SPEC || !FRAMES_OUT) { console.error('--frames and --out go together'); process.exit(2); }
+  if (preview || manual) { console.error('--frames cannot be combined with --preview or --manual'); process.exit(2); }
+  try { exactFrames = parseFrameSpec(FRAMES_SPEC); } catch (e) { console.error(e.message); process.exit(2); }
+}
 const B = path.join(jobsDir(ROOT), job, 'build');
 if (!fs.existsSync(path.join(B, 'timing.json'))) { console.error(`missing ${B}/timing.json. Run: ./p2v tts ${job}`); process.exit(2); }
 // Refuse stale inputs: narration/timing must be newer than script.json (tts.py rewrites both).
@@ -50,7 +59,7 @@ const ready = new Promise(r => (listening = r));
 const srv = startServer(port, { onDone: (j, st) => { if (j === job) finish(st); }, onListen: listening });
 const url = `http://127.0.0.1:${await ready}/engine/index.html?job=${encodeURIComponent(job)}`;
 
-if (!preview) fs.rmSync(path.join(B, 'frames'), { recursive: true, force: true });
+if (!preview && !exactFrames) fs.rmSync(path.join(B, 'frames'), { recursive: true, force: true });
 
 if (manual) {
   console.log(`Open this URL in a browser tab and keep it open until it finishes:\n  ${url}&capture=1`);
@@ -105,6 +114,22 @@ if (preview) {
   const items = await page.evaluate(() => window.scanText(3));
   fs.writeFileSync(path.join(B, 'onscreen.json'), JSON.stringify({ mode: 'scan', at: new Date().toISOString(), items }, null, 1));
   console.log(`wrote ${path.join(B, 'onscreen.json')} (${items.length} strings)`);
+  await browser.close(); srv.close(); process.exit(0);
+}
+
+if (exactFrames) {
+  // Lossless stills straight from the canvas. Frame f-1 is drawn first, as in the parallel capture below, so the
+  // canvas state (and every anti-aliased edge) matches the frame the full render produced.
+  const total = await page.evaluate(() => window.NFRAMES);
+  const bad = exactFrames.filter(f => f >= total);
+  if (bad.length) bail(`frames ${bad.slice(0, 5).join(', ')} are past the end (the job has ${total} frames, 0-${total - 1})`, 2);
+  fs.mkdirSync(FRAMES_OUT, { recursive: true });
+  for (const f of exactFrames) {
+    const data = await page.evaluate(f => { if (f > 0) window.renderAt((f - 1) / 30); window.renderAt(f / 30); return document.getElementById('out').toDataURL('image/png'); }, f);
+    const file = path.join(FRAMES_OUT, `f${String(f).padStart(5, '0')}_${(f / 30).toFixed(2)}s_exact.png`);
+    fs.writeFileSync(file, Buffer.from(data.split(',')[1], 'base64'));
+    console.log('wrote', file);
+  }
   await browser.close(); srv.close(); process.exit(0);
 }
 
