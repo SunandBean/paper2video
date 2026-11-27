@@ -157,13 +157,13 @@ case "$CMD" in
   fetch)   need_tools; [ -n "${1:-}" ] || { echo "usage: p2v fetch <arxiv link or id>"; exit 2; }; exec "$PY" "$ROOT/scripts/fetch_paper.py" "$@" ;;
   check)   need_tools; need_job "${1:-}"; exec "$PY" "$ROOT/scripts/check_claims.py" "$@" ;;
   tts)     need_tools; need_job "${1:-}"; exec "$PY" "$ROOT/scripts/tts.py" "$@" ;;
-  preview) need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$1" --preview ;;
+  preview) need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$@" --preview ;;
   render)  need_tools; need_job "${1:-}"; exec node "$ROOT/scripts/render.mjs" "$@" ;;
   collect) exec node "$ROOT/scripts/collect.mjs" ;;
   gpus)    exec node -e 'import(process.argv[1]).then(m => console.log(m.formatGpus()))' "$ROOT/scripts/gpu.mjs" ;;
   smoke)   smoke "${1:-}" ;;
   test)    "$SYSPY" "$ROOT/tests/test_python.py" && node "$ROOT/tests/test_server.mjs" ;;
   run)     run_unattended "$@" ;;
-  help|-h|--help) sed -n '2,19p' "$0" | sed 's/^# \{0,1\}//' ;;
+  help|-h|--help) awk 'NR == 1 { next } /^#/ { sub(/^# ?/, ""); print; next } { exit }' "$0" ;;
   *) echo "p2v: unknown command '$CMD' (try: p2v help)"; exit 2 ;;
 esac

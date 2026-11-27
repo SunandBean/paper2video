@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Regression tests for scripts/serve.mjs and the mux frame check (no browser, no ffmpeg run).
+// Regression tests for scripts/serve.mjs and the mux frame checks (no browser; the ffmpeg test is skipped without ffmpeg).
 //   node tests/test_server.mjs        (or: ./p2v test)
 import fs from 'node:fs';
 import os from 'node:os';
