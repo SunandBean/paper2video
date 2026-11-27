@@ -15,7 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { resolveFfmpeg, mux, jobsDir, toolsDir } from './lib.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary' };
+const types = { '.html': 'text/html', '.js': 'text/javascript', '.mjs': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg', '.wav': 'audio/wav', '.mp3': 'audio/mpeg', '.glb': 'model/gltf-binary', '.ttf': 'font/ttf' };
 const status = {};
 const JOB_RE = /^[A-Za-z0-9_][A-Za-z0-9_.-]*$/;   // same rule as p2v
 const inside = (base, p) => p === base || p.startsWith(base + path.sep);

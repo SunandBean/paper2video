@@ -112,7 +112,9 @@ export function flow({ boxes, sentence = 0, y = 700, note = '' }) {
 }
 
 // Draws over any scene during its last `secs` seconds (e.g. sources/credits).
-export function endCard({ title, lines = [], secs = 3.2, maxW = 1700 }) {
+// secs is clamped to >= 4.4 so the card is fully opaque and alone for >= 3 s (0.8 s fade-in, 0.3 s scene fade-out).
+export function endCard({ title, lines = [], secs = 4.4, maxW = 1700 }) {
+  secs = Math.max(secs, 4.4);
   return {
     draw(ctx, S) {
       const ea = eo(seg(S.t, S.dur - secs, S.dur - secs + .8));
@@ -886,4 +888,67 @@ export function tabletopFrame(ctx, x, y, w, h, a, { eff = 'gripper', u = .5, v =
   }
   ctx.restore();
   rrect(ctx, x, y, w, h, 8, null, border, 2, a);
+}
+
+// ---------------------------------------------------------------- layer readout (added for 2611.06918 NEO-VLA)
+// Vertical stack of n network layers, layer 0 at the bottom (a transformer backbone, an action expert, a probed model).
+// lit: layer indexes drawn in litColor (the rest dim); reveal 0..1 builds the stack bottom-up; ticks: indexes printed
+// on the left; label / sub: text above the stack. Draw call, not a scene. Returns { y(i), x0, x1 } for links and labels.
+export function layerStack(ctx, x, y, w, h, n, { lit = [], color = '#5d6878', litColor = C.green, alpha = 1, reveal = 1,
+  ticks = [], label = '', sub = '', gap = 2, tickSide = 'left', labelColor = C.white } = {}) {
+  const lh = h / n, ly = i => y + h - (i + .5) * lh, on = new Set(lit);
+  if (alpha > 0) {
+    for (let i = 0; i < n; i++) {
+      const ai = alpha * clamp(reveal * n - i);
+      if (ai <= 0) break;
+      rrect(ctx, x, y + h - (i + 1) * lh + gap / 2, w, Math.max(1, lh - gap), Math.min(4, lh / 3), on.has(i) ? litColor : color, null, 0, ai * (on.has(i) ? 1 : .55));
+    }
+    ticks.forEach(i => txt(ctx, String(i), tickSide === 'left' ? x - 12 : x + w + 12, ly(i) + 7, { size: 19, color: C.gray, align: tickSide === 'left' ? 'right' : 'left', alpha }));
+    if (label) txt(ctx, label, x + w / 2, y - (sub ? 44 : 18), { size: 24, weight: 800, align: 'center', color: labelColor, alpha, maxW: Math.max(w + 120, 220) });
+    if (sub) txt(ctx, sub, x + w / 2, y - 16, { size: 19, align: 'center', color: C.gray, alpha, maxW: Math.max(w + 120, 220) });
+  }
+  return { y: ly, x0: x, x1: x + w };
+}
+// Curved links from layers of stack A (its right edge) to layers of stack B (its left edge), e.g. "expert layer j reads
+// backbone layer m_j". pairs: [[iA, iB], ...]; A, B: return values of layerStack. hi: pair index drawn bold in hiColor.
+export function layerLinks(ctx, A, B, pairs, { color = 'rgba(118,185,0,.45)', alpha = 1, prog = 1, lw = 2, hi = -1, hiColor = C.yellow } = {}) {
+  if (alpha <= 0 || prog <= 0) return;
+  const m = Math.ceil(pairs.length * clamp(prog));
+  for (let k = 0; k < m; k++) {
+    const [i, j] = pairs[k], x1 = A.x1, y1 = A.y(i), x2 = B.x0, y2 = B.y(j), cx = (x1 + x2) / 2;
+    ctx.save(); ctx.globalAlpha = alpha; ctx.strokeStyle = k === hi ? hiColor : color; ctx.lineWidth = k === hi ? lw * 2.2 : lw;
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.bezierCurveTo(cx, y1, cx, y2, x2, y2); ctx.stroke(); ctx.restore();
+  }
+}
+
+// ---------------------------------------------------------------- agent / benchmark papers (added for 2611.09218)
+// One tool call as a chip on an agent's task lane ('edit code', 'build', 'boxbox()'). Lay several out left to right.
+export function toolCall(ctx, s, x, y, color, a, w = 170) {
+  if (a <= 0) return;
+  rrect(ctx, x, y - 26, w, 52, 12, 'rgba(14,20,28,.92)', color, 2.5, a);
+  txt(ctx, s, x + w / 2, y + 8, { size: 22, weight: 800, align: 'center', color, alpha: a, maxW: w - 16 });
+}
+
+// Construction funnel (e.g. "103,475 candidates -> 7,257 -> 239 -> 100 tasks"), bar width on a log scale (labelled).
+// stages: [{ n: '7,257', value: 7257, label: 'pass prechecks · access, license' }]; the last stage is drawn in the accent color.
+// Stages appear one by one across sentence `sentence`.
+export function countFunnel({ heading = '', stages, sentence = 0, box = [960, 270, 860, 600] }) {
+  need(Array.isArray(stages) && stages.length && stages.every(s => s.value >= 1), 'countFunnel needs stages with value >= 1');
+  const [x, y, w, h] = box, top = Math.max(...stages.map(s => s.value)), rowH = (h - 100) / stages.length;
+  return {
+    draw(ctx, S) {
+      const a = eo(S.P(sentence, 0, .1));
+      if (a <= 0) return;
+      panel(ctx, x, y, w, h, a);
+      if (heading) txt(ctx, heading, x + 30, y + 50, { size: 26, weight: 800, color: C.gray, alpha: a, maxW: w - 300 });
+      tag(ctx, 'bar width: log scale', x + w - 24, y + 50, a, 'right');
+      stages.forEach((s, i) => {
+        const ai = eo(S.P(sentence, .05 + i * .8 / stages.length, .25 + i * .8 / stages.length)), last = i === stages.length - 1;
+        const bw = Math.max(60, (w - 80) * Math.log10(Math.max(s.value, 1.5)) / Math.log10(Math.max(top, 2))) * ai, by = y + 100 + i * rowH;
+        rrect(ctx, x + w / 2 - bw / 2, by, bw, 56, 10, last ? C.green : '#4a5566', null, 0, ai);
+        txt(ctx, s.n ?? String(s.value), x + w / 2, by + 40, { size: 32, weight: 900, align: 'center', color: last ? '#0b0f14' : C.white, alpha: ai });
+        if (s.label) txt(ctx, s.label, x + w / 2, by + 88, { size: 21, color: last ? C.green : C.gray, align: 'center', alpha: ai, maxW: w - 60 });
+      });
+    }
+  };
 }

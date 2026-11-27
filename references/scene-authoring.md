@@ -48,6 +48,8 @@ export const rig = () => {               // custom 3D scene
   image, optional fixed noise as a stand-in for a Monte Carlo estimate), `traceStreamline(F, fx, fy)` + `drawPath(ctx, pts, box, { prog })`
   (streamlines / any unit-box polyline drawn progressively), `wosPath(x, y, dist, rnd)` (Walk on Spheres steps), `heatColor` / `heatCss`.
   Tag toy solves on screen as illustrations. Worked example: `jobs/acm-3811340/scenes.js` (warehouse heat flow, WoS, tiles, Markov chain).
+- Agent / benchmark papers (2D): `toolCall` (one tool call as a chip on an agent task lane), `countFunnel({ stages })`
+  (dataset/benchmark construction funnel, log-scale widths, labelled). Worked example: `jobs/2611.09218/scenes.js` (BOXBOX pit stop, kernel band, review session).
 - Worked example with every pattern: `jobs/2610.30340/scenes_a.js`, `scenes_b.js` (rig, ego/rig pose,
   depth → point cloud fly-out, query-based detection, BEV → voxels, Gaussian splats + sky, pose graph,
   tracking, LiDAR accumulation, results, limits).
